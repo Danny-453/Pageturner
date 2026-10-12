@@ -1,0 +1,1 @@
+export default function PageHeader({eyebrow,title,description,actions}){return <div className="row space-between" style={{alignItems:'flex-end',gap:20,marginBottom:26}}><div><div className="eyebrow">{eyebrow}</div><h1>{title}</h1>{description&&<p className="muted" style={{maxWidth:760,marginBottom:0}}>{description}</p>}</div>{actions&&<div className="row">{actions}</div>}</div>}

@@ -1,0 +1,6 @@
+import {Outlet} from 'react-router-dom';
+import {useEffect,useState} from 'react';
+import Sidebar from '../components/navigation/Sidebar';
+import Header from '../components/navigation/Header';
+import '../components/layout/AppShell.css';
+export default function AppLayout(){const [open,setOpen]=useState(()=>window.matchMedia('(min-width: 901px)').matches);useEffect(()=>{const viewport=window.matchMedia('(min-width: 901px)');const syncWithViewport=(event)=>setOpen(event.matches);viewport.addEventListener('change',syncWithViewport);return()=>viewport.removeEventListener('change',syncWithViewport)},[]);useEffect(()=>{if(!open)return undefined;const closeOnEscape=(event)=>{if(event.key==='Escape')setOpen(false)};window.addEventListener('keydown',closeOnEscape);return()=>window.removeEventListener('keydown',closeOnEscape)},[open]);return <div className="app-shell">{open&&<button type="button" className="sidebar-backdrop" aria-label="Close navigation" onClick={()=>setOpen(false)}/>}<Sidebar open={open} onClose={()=>setOpen(false)}/><div className={`main-shell ${open?'':'main-shell-sidebar-collapsed'}`}><Header onMenu={()=>setOpen(value=>!value)} menuOpen={open}/><main><Outlet/></main></div></div>}

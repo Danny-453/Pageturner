@@ -1,0 +1,17 @@
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+*.sqlite3
+.env
+.env.*
+!.env.example
+node_modules/
+dist/
+.idea/
+.vscode/
+.DS_Store

@@ -1,0 +1,397 @@
+.app-shell {
+    display: flex;
+    min-height: 100vh;
+}
+
+.sidebar {
+    position: fixed;
+    inset: 0 auto 0 0;
+    width: var(--sidebar-width);
+    background: var(--color-surface);
+    border-right: 1px solid var(--color-border);
+    display: flex;
+    flex-direction: column;
+    z-index: 30;
+    transition: transform 0.2s ease;
+}
+
+.sidebar:not(.sidebar-open) {
+    transform: translateX(-100%);
+}
+
+.sidebar-backdrop {
+    display: none;
+}
+
+.sidebar-brand {
+    height: var(--header-height);
+    padding: 10px 18px;
+    border-bottom: 1px solid var(--color-border);
+    display: flex;
+    align-items: center;
+}
+
+.sidebar-logo {
+    width: 130px;
+    height: 52px;
+    object-fit: contain;
+    object-position: left center;
+}
+
+.sidebar-nav {
+    padding: 18px 12px;
+    display: grid;
+    gap: 4px;
+}
+
+.nav-link {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 11px 12px;
+    border-radius: 7px;
+    color: var(--color-text-muted);
+    font-weight: 650;
+    font-size: 14px;
+}
+
+.nav-link:hover {
+    background: var(--color-background);
+    color: var(--color-text);
+}
+
+.nav-link.active {
+    background: var(--color-primary-light);
+    color: var(--color-primary);
+}
+
+.sidebar-bottom {
+    margin-top: auto;
+    padding: 12px;
+}
+
+.sidebar-note {
+    border-top: 1px solid var(--color-border);
+    padding: 16px 10px 8px;
+    display: grid;
+    gap: 4px;
+    font-size: 12px;
+    color: var(--color-text-muted);
+}
+
+.sidebar-note strong {
+    color: var(--color-text);
+}
+
+.main-shell {
+    margin-left: var(--sidebar-width);
+    min-width: 0;
+    flex: 1;
+    transition: margin-left 0.2s ease;
+}
+
+.main-shell-sidebar-collapsed {
+    margin-left: 0;
+}
+
+.app-header {
+    height: var(--header-height);
+    background: var(--color-surface);
+    border-bottom: 1px solid var(--color-border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 28px;
+    position: sticky;
+    top: 0;
+    z-index: 20;
+}
+
+.header-title {
+    font-weight: 800;
+    letter-spacing: -0.01em;
+}
+
+.header-actions {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.header-level {
+    font-size: 12px;
+    color: var(--color-text-muted);
+    font-weight: 700;
+}
+
+.header-profile {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+}
+
+.header-profile small {
+    display: block;
+    color: var(--color-text-muted);
+    font-size: 11px;
+}
+
+.mobile-menu {
+    display: grid;
+}
+
+/* =========================
+   Authentication
+   ========================= */
+
+.auth-page {
+    min-height: 100vh;
+    display: grid;
+    grid-template-columns: 1.05fr 0.95fr;
+    background: var(--color-background);
+}
+
+.auth-brand {
+    background: var(--color-primary-dark);
+    color: white;
+    padding: 60px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.auth-brand-logo {
+    width: 250px;
+    margin-bottom: 32px;
+}
+
+.auth-form-wrap {
+    display: grid;
+    place-items: center;
+    padding: 32px;
+}
+
+.auth-card {
+    width: min(470px, 100%);
+    padding: 34px;
+}
+
+.auth-card h1 {
+    font-size: 32px;
+}
+
+
+/* =========================
+   Landing Page
+   ========================= */
+
+.landing {
+    min-height: 100vh;
+    background: var(--color-surface);
+}
+
+.landing-header {
+    height: 76px;
+    border-bottom: 1px solid var(--color-border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 max(24px, calc((100vw - 1280px) / 2));
+}
+
+.landing-logo {
+    width: 150px;
+    height: 58px;
+    object-fit: contain;
+}
+
+.landing-hero {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 80px 24px 90px;
+    display: grid;
+    grid-template-columns: 0.80fr 1.20fr;
+    align-items: center;
+    gap: 70px;
+}
+
+.hero-title {
+    font-family: var(--font-serif);
+    font-size: clamp(48px, 6vw, 76px);
+    line-height: 0.98;
+    margin: 12px 0 22px;
+}
+
+.hero-title span {
+    color: var(--color-primary);
+}
+
+.hero-copy {
+    font-size: 18px;
+    color: var(--color-text-muted);
+    max-width: 650px;
+}
+
+.hero-book {
+    border: 1px solid var(--color-border);
+    background: var(--color-surface);
+    padding: 28px;
+    box-shadow: var(--shadow-md);
+}
+
+.landing-section {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 70px 24px;
+}
+
+.landing-section.alt {
+    max-width: none;
+    background: var(--color-background);
+}
+
+.landing-section.alt > div {
+    max-width: 1280px;
+    margin: 0 auto;
+}
+
+.feature-card {
+    padding: 24px;
+}
+
+.footer {
+    border-top: 1px solid var(--color-border);
+    padding: 30px 24px;
+    color: var(--color-text-muted);
+}
+
+
+/* =========================
+   Responsive: Tablet
+   ========================= */
+
+@media (max-width: 900px) {
+    .sidebar-backdrop {
+        display: block;
+        position: fixed;
+        inset: 0;
+        z-index: 25;
+        border: 0;
+        background: rgba(0, 0, 0, 0.35);
+        cursor: pointer;
+    }
+
+    .sidebar {
+        box-shadow: var(--shadow-md);
+    }
+
+    .sidebar.sidebar-open {
+        transform: translateX(0);
+    }
+
+    .sidebar:not(.sidebar-open) {
+        transform: translateX(-100%);
+    }
+
+    .main-shell {
+        margin-left: 0;
+    }
+
+    .app-header {
+        padding: 0 18px;
+    }
+
+    .header-title {
+        display: none;
+    }
+
+    .header-level {
+        display: none;
+    }
+
+    .auth-page {
+        grid-template-columns: 1fr;
+    }
+
+    .auth-brand {
+        display: none;
+    }
+
+    .landing-hero {
+        grid-template-columns: 1fr;
+        padding-top: 56px;
+    }
+
+    .landing-header {
+        padding: 0 18px;
+    }
+
+    .landing-hero {
+        gap: 36px;
+    }
+}
+
+
+/* =========================
+   Responsive: Mobile
+   ========================= */
+
+@media (max-width: 520px) {
+    .header-profile > div {
+        display: none;
+    }
+
+    .auth-card {
+        padding: 24px;
+    }
+
+    .landing-hero {
+        padding: 42px 18px 60px;
+    }
+
+    .landing-section {
+        padding: 50px 18px;
+    }
+}
+
+
+/* =========================================================
+   LANDING HERO — GEOLOGY STUDENT IMAGE
+   ========================================================= */
+
+.hero-panel {
+    width: 100%;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.hero-image-frame {
+    width: 100%;
+    height: 340px;
+
+    position: relative;
+    overflow: hidden;
+
+    border: 1px solid var(--color-border);
+    border-radius: 20px;
+
+    background: #0d0d12;
+
+    box-shadow:
+        0 20px 50px rgba(0, 0, 0, 0.25),
+        0 0 0 1px rgba(255, 255, 255, 0.02);
+}
+
+.hero-student-image {
+    width: 100%;
+    height: 100%;
+
+    display: block;
+
+    object-fit: cover;
+    object-position: center;
+
+    border-radius: inherit;
+}
