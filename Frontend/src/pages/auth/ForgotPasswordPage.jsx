@@ -9,8 +9,7 @@ export default function ForgotPasswordPage() {
   const [sent, setSent] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  async function submit(event) {
-    event.preventDefault();
+  async function sendResetRequest() {
     setError('');
     setLoading(true);
     try {
@@ -21,6 +20,11 @@ export default function ForgotPasswordPage() {
     } finally {
       setLoading(false);
     }
+  }
+
+  async function submit(event) {
+    event.preventDefault();
+    await sendResetRequest();
   }
 
   return (
@@ -40,9 +44,21 @@ export default function ForgotPasswordPage() {
             <Link to="/" className="muted" style={{ fontSize: 13 }}>Home</Link>
           </div>
           {sent ? (
-            <div className="notice" role="status">
-              If an account exists for that email, a reset link will be sent. Check your inbox and spam folder.
-            </div>
+            <>
+              <div className="notice" role="status">
+                If an account exists for that email, a reset link will be sent. Check your inbox and spam folder.
+              </div>
+              {error && <div className="notice" role="alert" style={{ color: 'var(--color-error)', marginTop: 16 }}>{error}</div>}
+              <button
+                className="btn btn-primary"
+                type="button"
+                style={{ width: '100%', marginTop: 16 }}
+                disabled={loading}
+                onClick={sendResetRequest}
+              >
+                {loading ? 'Sending…' : 'Resend reset email'}
+              </button>
+            </>
           ) : (
             <>
               <p className="muted">Enter the email address associated with your account.</p>
