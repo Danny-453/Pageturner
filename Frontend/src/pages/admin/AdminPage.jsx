@@ -28,6 +28,7 @@ export default function AdminPage() {
   const [contentLessons, setContentLessons] = useState([]);
   const [contentQuestions, setContentQuestions] = useState([]);
   const [users, setUsers] = useState([]);
+  const [selectedUserId, setSelectedUserId] = useState('');
   const [courseId, setCourseId] = useState('');
   const [topicId, setTopicId] = useState('');
   const [notice, setNotice] = useState('');
@@ -51,6 +52,9 @@ export default function AdminPage() {
       { option_key: 'd', text: '', order: 4 },
     ],
   });
+  const selectedUser = users.find((account) => account.id === selectedUserId);
+  const selectedUserIsCurrent = selectedUser?.id === user?.id;
+  const selectedUserIsBusy = userActionId === selectedUser?.id;
 
   async function refreshContent() {
     const [courseItems, lessonItems, questionItems, users] = await Promise.all([
@@ -294,6 +298,9 @@ export default function AdminPage() {
       });
       const updatedUsers = users.map((item) => item.id === updated.id ? updated : item);
       setUsers(updatedUsers);
+      if (selectedUserId === target.id) {
+        setSelectedUserId(updatedUsers[0]?.id || '');
+      }
       setCounts((current) => ({
         ...current,
         students: updatedUsers.filter((item) => item.role === 'student' && item.is_active).length,
@@ -382,52 +389,64 @@ export default function AdminPage() {
               Deactivate an account to block sign-in while keeping its data, or permanently delete it and its associated learning records.
               Your current administrator account cannot be deactivated or deleted.
             </p>
-            <div className="stack" style={{ gap: 10 }}>
-              {users.map((account) => {
-                const isCurrentUser = account.id === user?.id;
-                const isBusy = userActionId === account.id;
-                return (
-                  <div className="notice" key={account.id}>
-                    <div className="row space-between" style={{ flexWrap: 'wrap', alignItems: 'flex-start' }}>
-                      <div>
-                        <strong>{account.full_name}</strong>
-                        <div className="muted" style={{ marginTop: 4 }}>{account.email}</div>
-                        <div className="row" style={{ marginTop: 8, flexWrap: 'wrap' }}>
-                          <span className="badge">{account.role}</span>
-                          <span className={`badge ${account.is_active ? 'badge-success' : 'badge-neutral'}`}>
-                            {account.is_active ? 'Active' : 'Inactive'}
-                          </span>
-                          {isCurrentUser && <span className="muted">You</span>}
-                        </div>
-                      </div>
-                      <div className="row" style={{ flexWrap: 'wrap' }}>
-                        {!isCurrentUser && (
-                          <button
-                            type="button"
-                            className="btn btn-secondary"
-                            disabled={Boolean(userActionId)}
-                            aria-busy={isBusy}
-                            onClick={() => changeUserStatus(account, !account.is_active)}
-                          >
-                            {isBusy ? 'Updating…' : account.is_active ? 'Deactivate' : 'Reactivate'}
-                          </button>
-                        )}
-                        <button
-                          type="button"
-                          className="btn btn-danger"
-                          disabled={Boolean(userActionId) || isCurrentUser}
-                          aria-busy={isBusy}
-                          onClick={() => permanentlyDeleteUser(account)}
-                        >
-                          {isBusy ? 'Deleting…' : 'Delete permanently'}
-                        </button>
+            <div className="form-field" style={{ maxWidth: 560 }}>
+              <label htmlFor="managed-user">Choose a user</label>
+              <select
+                id="managed-user"
+                className="select"
+                value={selectedUserId}
+                onChange={(event) => setSelectedUserId(event.target.value)}
+                disabled={!users.length || Boolean(userActionId)}
+              >
+                <option value="" disabled>Select a user account</option>
+                {users.map((account) => (
+                  <option key={account.id} value={account.id}>
+                    {account.full_name} · {account.email} · {account.is_active ? 'Active' : 'Inactive'}
+                  </option>
+                ))}
+              </select>
+            </div>
+            {selectedUser ? (
+                <div className="notice" style={{ marginTop: 16 }}>
+                  <div className="row space-between" style={{ flexWrap: 'wrap', alignItems: 'flex-start' }}>
+                    <div>
+                      <strong>{selectedUser.full_name}</strong>
+                      <div className="muted" style={{ marginTop: 4 }}>{selectedUser.email}</div>
+                      <div className="row" style={{ marginTop: 8, flexWrap: 'wrap' }}>
+                        <span className="badge">{selectedUser.role}</span>
+                        <span className={`badge ${selectedUser.is_active ? 'badge-success' : 'badge-neutral'}`}>
+                          {selectedUser.is_active ? 'Active' : 'Inactive'}
+                        </span>
+                        {selectedUserIsCurrent && <span className="muted">You</span>}
                       </div>
                     </div>
+                    <div className="row" style={{ flexWrap: 'wrap' }}>
+                      {!selectedUserIsCurrent && (
+                        <button
+                          type="button"
+                          className="btn btn-secondary"
+                          disabled={Boolean(userActionId)}
+                          aria-busy={selectedUserIsBusy}
+                          onClick={() => changeUserStatus(selectedUser, !selectedUser.is_active)}
+                        >
+                          {selectedUserIsBusy ? 'Updating…' : selectedUser.is_active ? 'Deactivate' : 'Reactivate'}
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        className="btn btn-danger"
+                        disabled={Boolean(userActionId) || selectedUserIsCurrent}
+                        aria-busy={selectedUserIsBusy}
+                        onClick={() => permanentlyDeleteUser(selectedUser)}
+                      >
+                        {selectedUserIsBusy ? 'Deleting…' : 'Delete permanently'}
+                      </button>
+                    </div>
                   </div>
-                );
-              })}
-              {!users.length && <p className="muted">No user accounts found.</p>}
-            </div>
+                </div>
+            ) : (
+              <p className="muted">{users.length ? 'Select a user account to manage.' : 'No user accounts found.'}</p>
+            )}
           </section>
 
           <section className="card card-pad" style={{ marginTop: 20 }}>
