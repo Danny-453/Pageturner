@@ -14,9 +14,14 @@ class UserOut(BaseModel):
     questions_answered: int
     correct_answers: int
     accuracy: float
+    is_active: bool
 
 
 class UserUpdate(BaseModel):
     full_name: str | None = None
     student_id: str | None = None
     academic_level_id: str | None = None
+
+
+class UserStatusUpdate(BaseModel):
+    is_active: bool

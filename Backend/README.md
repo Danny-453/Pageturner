@@ -50,6 +50,8 @@ The API is available at `http://localhost:8000`; interactive docs are at `http:/
 
 Password reset requires an SMTP provider. Configure its SMTP settings above, set `FRONTEND_URL` to the deployed site origin, and run `python -m alembic upgrade head` to create the reset-token table. Reset links expire after 30 minutes and can only be used once. Keep SMTP credentials in `.env` and never commit them.
 
+Administrators can manage accounts from the admin page: deactivation blocks sign-in but preserves account data, reactivation restores access, and permanent deletion removes the account and its associated learning records. The API protects the current administrator and prevents removing the last active administrator.
+
 The AI tutor is available to signed-in users from the **AI Tutor** navigation link. It answers questions using the selected published course’s description, topics, and lesson notes. Chat history is held in the browser only; each request sends at most the recent conversation to Gemini. Configure `GEMINI_API_KEY` in the backend environment to enable it. Gemini API free-tier access has model and request limits that can change; review Google's current [pricing and data-use terms](https://ai.google.dev/gemini-api/docs/pricing) before sending student information. Do not send personal or sensitive information to the free tier.
 
 ## Deploy to Google Cloud Run with Neon

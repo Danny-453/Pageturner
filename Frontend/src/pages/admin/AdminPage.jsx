@@ -27,11 +27,13 @@ export default function AdminPage() {
   const [topics, setTopics] = useState([]);
   const [contentLessons, setContentLessons] = useState([]);
   const [contentQuestions, setContentQuestions] = useState([]);
+  const [users, setUsers] = useState([]);
   const [courseId, setCourseId] = useState('');
   const [topicId, setTopicId] = useState('');
   const [notice, setNotice] = useState('');
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
+  const [userActionId, setUserActionId] = useState('');
   const [editing, setEditing] = useState(null);
   const [courseForm, setCourseForm] = useState({ code: '', title: '', description: '', academic_level_id: '' });
   const [topicForm, setTopicForm] = useState({ title: '', description: '', order: 1 });
@@ -58,8 +60,9 @@ export default function AdminPage() {
       apiGet('/users'),
     ]);
     setCourses(courseItems);
+    setUsers(users);
     setCounts({
-      students: users.length,
+      students: users.filter((item) => item.role === 'student' && item.is_active).length,
       courses: courseItems.length,
       lessons: lessonItems.length,
       questions: questionItems.length,
@@ -85,8 +88,9 @@ export default function AdminPage() {
           if (!active) return;
           setLevels(levelItems);
           setCourses(courseItems);
+          setUsers(users);
           setCounts({
-            students: users.length,
+            students: users.filter((item) => item.role === 'student' && item.is_active).length,
             courses: courseItems.length,
             lessons: lessonItems.length,
             questions: questionItems.length,
@@ -272,6 +276,65 @@ export default function AdminPage() {
     }
   }
 
+  async function changeUserStatus(target, isActive) {
+    const action = isActive ? 'reactivate' : 'deactivate';
+    if (target.id === user?.id && !isActive) {
+      setError('You cannot deactivate your own account.');
+      return;
+    }
+    if (!window.confirm(`Are you sure you want to ${action} ${target.full_name}'s account?`)) return;
+
+    setError('');
+    setNotice('');
+    setUserActionId(target.id);
+    try {
+      const updated = await apiRequest(`/users/${encodeURIComponent(target.id)}/status`, {
+        method: 'PATCH',
+        body: JSON.stringify({ is_active: isActive }),
+      });
+      const updatedUsers = users.map((item) => item.id === updated.id ? updated : item);
+      setUsers(updatedUsers);
+      setCounts((current) => ({
+        ...current,
+        students: updatedUsers.filter((item) => item.role === 'student' && item.is_active).length,
+      }));
+      setNotice(`${target.full_name}'s account ${isActive ? 'reactivated' : 'deactivated'}.`);
+    } catch (statusError) {
+      setError(statusError.message);
+    } finally {
+      setUserActionId('');
+    }
+  }
+
+  async function permanentlyDeleteUser(target) {
+    if (target.id === user?.id) {
+      setError('You cannot delete your own account.');
+      return;
+    }
+    const confirmation = window.prompt(
+      `Permanently delete ${target.full_name} (${target.email}) and all their course progress, quiz attempts, achievements, and reset tokens? This cannot be undone. Type DELETE to confirm.`,
+    );
+    if (confirmation !== 'DELETE') return;
+
+    setError('');
+    setNotice('');
+    setUserActionId(target.id);
+    try {
+      await apiRequest(`/users/${encodeURIComponent(target.id)}`, { method: 'DELETE' });
+      const updatedUsers = users.filter((item) => item.id !== target.id);
+      setUsers(updatedUsers);
+      setCounts((current) => ({
+        ...current,
+        students: updatedUsers.filter((item) => item.role === 'student' && item.is_active).length,
+      }));
+      setNotice(`${target.full_name}'s account and related data were permanently deleted.`);
+    } catch (deleteError) {
+      setError(deleteError.message);
+    } finally {
+      setUserActionId('');
+    }
+  }
+
   if (API_ENABLED && user?.role !== 'admin') {
     return (
       <div className="page-container">
@@ -312,6 +375,61 @@ export default function AdminPage() {
         </div>
       ) : (
         <>
+          <section className="card card-pad" style={{ marginTop: 20 }}>
+            <div className="eyebrow">Account administration</div>
+            <h2 style={{ marginTop: 6 }}>Manage users</h2>
+            <p className="muted">
+              Deactivate an account to block sign-in while keeping its data, or permanently delete it and its associated learning records.
+              Your current administrator account cannot be deactivated or deleted.
+            </p>
+            <div className="stack" style={{ gap: 10 }}>
+              {users.map((account) => {
+                const isCurrentUser = account.id === user?.id;
+                const isBusy = userActionId === account.id;
+                return (
+                  <div className="notice" key={account.id}>
+                    <div className="row space-between" style={{ flexWrap: 'wrap', alignItems: 'flex-start' }}>
+                      <div>
+                        <strong>{account.full_name}</strong>
+                        <div className="muted" style={{ marginTop: 4 }}>{account.email}</div>
+                        <div className="row" style={{ marginTop: 8, flexWrap: 'wrap' }}>
+                          <span className="badge">{account.role}</span>
+                          <span className={`badge ${account.is_active ? 'badge-success' : 'badge-neutral'}`}>
+                            {account.is_active ? 'Active' : 'Inactive'}
+                          </span>
+                          {isCurrentUser && <span className="muted">You</span>}
+                        </div>
+                      </div>
+                      <div className="row" style={{ flexWrap: 'wrap' }}>
+                        {!isCurrentUser && (
+                          <button
+                            type="button"
+                            className="btn btn-secondary"
+                            disabled={Boolean(userActionId)}
+                            aria-busy={isBusy}
+                            onClick={() => changeUserStatus(account, !account.is_active)}
+                          >
+                            {isBusy ? 'Updating…' : account.is_active ? 'Deactivate' : 'Reactivate'}
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          className="btn btn-danger"
+                          disabled={Boolean(userActionId) || isCurrentUser}
+                          aria-busy={isBusy}
+                          onClick={() => permanentlyDeleteUser(account)}
+                        >
+                          {isBusy ? 'Deleting…' : 'Delete permanently'}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+              {!users.length && <p className="muted">No user accounts found.</p>}
+            </div>
+          </section>
+
           <section className="card card-pad" style={{ marginTop: 20 }}>
             <div className="eyebrow">Existing content</div>
             <h2 style={{ marginTop: 6 }}>Edit or delete learning content</h2>
