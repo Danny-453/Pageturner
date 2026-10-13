@@ -54,6 +54,7 @@ export default function ForgotPasswordPage() {
                 type="button"
                 style={{ width: '100%', marginTop: 16 }}
                 disabled={loading}
+                aria-busy={loading}
                 onClick={sendResetRequest}
               >
                 {loading ? 'Sending…' : 'Resend reset email'}
@@ -68,7 +69,7 @@ export default function ForgotPasswordPage() {
                   <label htmlFor="email">Email</label>
                   <input className="input" id="email" type="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} required />
                 </div>
-                <button className="btn btn-primary" type="submit" disabled={loading}>
+                <button className="btn btn-primary" type="submit" disabled={loading} aria-busy={loading}>
                   {loading ? 'Sending…' : 'Send reset link'}
                 </button>
               </form>

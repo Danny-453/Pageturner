@@ -62,7 +62,7 @@ export default function ResetPasswordPage() {
                   <label htmlFor="confirm-password">Confirm new password</label>
                   <input className="input" id="confirm-password" type="password" autoComplete="new-password" minLength={8} maxLength={128} value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} required />
                 </div>
-                <button className="btn btn-primary" type="submit" disabled={loading}>
+                <button className="btn btn-primary" type="submit" disabled={loading} aria-busy={loading}>
                   {loading ? 'Updating…' : 'Change password'}
                 </button>
               </form>

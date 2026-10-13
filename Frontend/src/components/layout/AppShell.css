@@ -151,6 +151,111 @@
     font-size: 11px;
 }
 
+.markdown-content {
+    margin-top: 8px;
+    line-height: 1.75;
+    overflow-wrap: anywhere;
+}
+
+.markdown-content > :first-child {
+    margin-top: 0;
+}
+
+.markdown-content > :last-child {
+    margin-bottom: 0;
+}
+
+.markdown-content h1,
+.markdown-content h2,
+.markdown-content h3,
+.markdown-content h4 {
+    margin: 1.25em 0 0.5em;
+    font-size: 1.08em;
+    line-height: 1.35;
+}
+
+.markdown-content p,
+.markdown-content ul,
+.markdown-content ol,
+.markdown-content blockquote {
+    margin: 0.65em 0;
+}
+
+.markdown-content ul,
+.markdown-content ol {
+    padding-left: 1.5em;
+}
+
+.markdown-content li + li {
+    margin-top: 0.35em;
+}
+
+.markdown-content blockquote {
+    border-left: 3px solid var(--color-primary);
+    color: var(--color-text-muted);
+    padding-left: 14px;
+}
+
+.markdown-content code {
+    border: 1px solid var(--color-border);
+    border-radius: 4px;
+    background: var(--color-surface);
+    padding: 0.12em 0.35em;
+    font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+    font-size: 0.9em;
+}
+
+.markdown-content pre {
+    overflow-x: auto;
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    background: var(--color-surface);
+    padding: 12px 14px;
+}
+
+.markdown-content pre code {
+    border: 0;
+    padding: 0;
+    background: transparent;
+}
+
+.markdown-content table {
+    display: block;
+    max-width: 100%;
+    overflow-x: auto;
+}
+
+.markdown-content th,
+.markdown-content td {
+    white-space: normal;
+}
+
+.markdown-content a {
+    color: var(--color-primary);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+
+.markdown-content img {
+    display: block;
+    max-width: 100%;
+    height: auto;
+    margin: 1em auto;
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+}
+
+.markdown-content .katex {
+    color: var(--color-text);
+}
+
+.markdown-content .katex-display {
+    max-width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: 4px 0;
+}
+
 .mobile-menu {
     display: grid;
 }

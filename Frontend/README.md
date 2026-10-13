@@ -40,6 +40,10 @@ The admin content page also lists existing courses and their topics, lessons, an
 
 Password reset is available from the **Forgot password?** link on the sign-in page. It requires a configured SMTP provider in `Backend/.env` and the database migration (`python -m alembic upgrade head`). Reset links are one-use and expire after 30 minutes.
 
+The **AI Tutor** page lets signed-in students ask questions grounded in published course descriptions and lesson notes. Add `GEMINI_API_KEY` to `Backend/.env` (or the backend host's environment settings) to enable it; the key stays on the backend. The backend tries `gemini-flash-lite-latest` and automatically falls back to `gemini-3.1-flash-lite` if the first model is temporarily unavailable. Gemini API free-tier usage is subject to model and request limits, and its terms may allow submitted content to be used to improve Google products. Do not send personal or sensitive information.
+
+Lesson notes and AI tutor replies support Markdown and LaTeX-style math. Use `$\\alpha$` for an inline symbol and put `$$\\sigma = \\frac{F}{A}$$` on its own lines to display an equation.
+
 ## Build
 
 ```bash

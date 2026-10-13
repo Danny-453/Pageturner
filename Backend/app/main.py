@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from contextlib import asynccontextmanager
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.routes import academic, achievements, admin, answers, auth, courses, health, leaderboard, lessons, progress, questions, users
+from app.api.routes import academic, achievements, admin, ai, answers, auth, courses, health, leaderboard, lessons, progress, questions, users
 from app.core.config import settings
 
 
@@ -32,6 +32,7 @@ app.include_router(progress.router, prefix="/api/v1")
 app.include_router(leaderboard.router, prefix="/api/v1")
 app.include_router(achievements.router, prefix="/api/v1")
 app.include_router(admin.router, prefix="/api/v1")
+app.include_router(ai.router, prefix="/api/v1")
 
 
 @app.get("/")

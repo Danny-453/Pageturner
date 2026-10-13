@@ -13,6 +13,7 @@ export const LEARNING_LEVELS = [
 export const NAV_ITEMS = [
   { label: 'Dashboard', path: '/dashboard', icon: 'grid' },
   { label: 'Courses', path: '/courses', icon: 'book' },
+  { label: 'AI Tutor', path: '/tutor', icon: 'message' },
   { label: 'Practice', path: '/practice', icon: 'target' },
   { label: 'Leaderboard', path: '/leaderboard', icon: 'chart' },
   { label: 'Achievements', path: '/achievements', icon: 'award' },

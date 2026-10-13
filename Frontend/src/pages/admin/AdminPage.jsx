@@ -426,7 +426,7 @@ export default function AdminPage() {
                 {editing.type === 'lesson' && (
                   <>
                     <FormField label="Lesson title"><input className="input" style={inputStyle} value={editing.form.title || ''} onChange={(event) => updateEditForm('title', event.target.value)} required /></FormField>
-                    <FormField label="Lesson content"><textarea className="input" style={{ ...inputStyle, minHeight: 180 }} value={editing.form.content || ''} onChange={(event) => updateEditForm('content', event.target.value)} required /></FormField>
+                    <FormField label="Lesson content (Markdown, math, and images supported)"><textarea className="input" style={{ ...inputStyle, minHeight: 180 }} value={editing.form.content || ''} onChange={(event) => updateEditForm('content', event.target.value)} required placeholder={'## Key concepts\n\nWrite lesson notes here. Use **bold** for important terms and lists for steps.\n\nInline symbol: $\\alpha$\n\n$$\\sigma = \\frac{F}{A}$$\n\n![Rock layers](https://example.com/rock-layers.jpg)'} /><span className="muted">Markdown supports formatting, math ($...$ inline; $$...$$ for displayed equations), and images. Add an image with ![description](https://public-image-url).</span></FormField>
                     <div className="grid-2">
                       <FormField label="Lesson order"><input className="input" style={inputStyle} type="number" min="1" value={editing.form.order ?? 1} onChange={(event) => updateEditForm('order', Number(event.target.value))} required /></FormField>
                       <FormField label="Estimated minutes"><input className="input" style={inputStyle} type="number" min="1" value={editing.form.estimated_minutes ?? 15} onChange={(event) => updateEditForm('estimated_minutes', Number(event.target.value))} required /></FormField>
@@ -457,7 +457,7 @@ export default function AdminPage() {
                     <FormField label="Explanation shown after answering"><textarea className="input" style={{ ...inputStyle, minHeight: 80 }} value={editing.form.explanation || ''} onChange={(event) => updateEditForm('explanation', event.target.value)} required /></FormField>
                   </>
                 )}
-                <button className="btn btn-primary" style={{ marginTop: 16 }} disabled={saving}>{saving ? 'Saving…' : `Save ${editing.type}`}</button>
+                <button className="btn btn-primary" style={{ marginTop: 16 }} disabled={saving} aria-busy={saving}>{saving ? 'Saving…' : `Save ${editing.type}`}</button>
               </form>
             )}
             {!courses.length && <p className="muted">No courses have been created yet.</p>}
@@ -487,7 +487,7 @@ export default function AdminPage() {
               <FormField label="Course description">
                 <textarea className="input" style={{ ...inputStyle, minHeight: 90 }} value={courseForm.description} onChange={(event) => setCourseForm({ ...courseForm, description: event.target.value })} required />
               </FormField>
-              <button className="btn btn-primary" style={{ marginTop: 16 }} disabled={saving}>{saving ? 'Saving…' : 'Create course'}</button>
+              <button className="btn btn-primary" style={{ marginTop: 16 }} disabled={saving} aria-busy={saving}>{saving ? 'Saving…' : 'Create course'}</button>
             </form>
           </section>
 
@@ -512,7 +512,7 @@ export default function AdminPage() {
               <FormField label="Topic order">
                 <input className="input" style={inputStyle} type="number" min="1" value={topicForm.order} onChange={(event) => setTopicForm({ ...topicForm, order: Number(event.target.value) })} required />
               </FormField>
-              <button className="btn btn-primary" style={{ marginTop: 16 }} disabled={saving || !courseId}>{saving ? 'Saving…' : 'Add topic'}</button>
+              <button className="btn btn-primary" style={{ marginTop: 16 }} disabled={saving || !courseId} aria-busy={saving}>{saving ? 'Saving…' : 'Add topic'}</button>
             </form>
           </section>
 
@@ -531,8 +531,9 @@ export default function AdminPage() {
               <FormField label="Lesson title">
                 <input className="input" style={inputStyle} value={lessonForm.title} onChange={(event) => setLessonForm({ ...lessonForm, title: event.target.value })} required />
               </FormField>
-              <FormField label="Lesson content">
-                <textarea className="input" style={{ ...inputStyle, minHeight: 180 }} value={lessonForm.content} onChange={(event) => setLessonForm({ ...lessonForm, content: event.target.value })} required />
+              <FormField label="Lesson content (Markdown, math, and images supported)">
+                <textarea className="input" style={{ ...inputStyle, minHeight: 180 }} value={lessonForm.content} onChange={(event) => setLessonForm({ ...lessonForm, content: event.target.value })} required placeholder={'## Key concepts\n\nWrite lesson notes here. Use **bold** for important terms and lists for steps.\n\nInline symbol: $\\alpha$\n\n$$\\sigma = \\frac{F}{A}$$\n\n![Rock layers](https://example.com/rock-layers.jpg)'} />
+                <span className="muted">Markdown supports formatting, math ($...$ inline; $$...$$ for displayed equations), and images. Add an image with ![description](https://public-image-url).</span>
               </FormField>
               <div className="grid-2">
                 <FormField label="Lesson order">
@@ -542,7 +543,7 @@ export default function AdminPage() {
                   <input className="input" style={inputStyle} type="number" min="1" value={lessonForm.estimated_minutes} onChange={(event) => setLessonForm({ ...lessonForm, estimated_minutes: Number(event.target.value) })} required />
                 </FormField>
               </div>
-              <button className="btn btn-primary" style={{ marginTop: 16 }} disabled={saving || !topicId}>{saving ? 'Saving…' : 'Add lesson'}</button>
+              <button className="btn btn-primary" style={{ marginTop: 16 }} disabled={saving || !topicId} aria-busy={saving}>{saving ? 'Saving…' : 'Add lesson'}</button>
             </form>
           </section>
 
@@ -596,7 +597,7 @@ export default function AdminPage() {
               <FormField label="Explanation shown after answering">
                 <textarea className="input" style={{ ...inputStyle, minHeight: 80 }} value={questionForm.explanation} onChange={(event) => setQuestionForm({ ...questionForm, explanation: event.target.value })} required />
               </FormField>
-              <button className="btn btn-primary" style={{ marginTop: 16 }} disabled={saving || !topicId}>{saving ? 'Saving…' : 'Add quiz question'}</button>
+              <button className="btn btn-primary" style={{ marginTop: 16 }} disabled={saving || !topicId} aria-busy={saving}>{saving ? 'Saving…' : 'Add quiz question'}</button>
             </form>
           </section>
         </>

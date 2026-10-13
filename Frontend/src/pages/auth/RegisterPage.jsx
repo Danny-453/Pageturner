@@ -236,6 +236,7 @@ export default function RegisterPage() {
                                 className="btn btn-primary"
                                 style={{ width: '100%' }}
                                 disabled={loading || !academicLevels.length}
+                                aria-busy={loading}
                             >
                                 {loading
                                     ? 'Creating…'
