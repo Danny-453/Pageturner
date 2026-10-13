@@ -29,7 +29,6 @@ export default function AdminPage() {
   const [contentQuestions, setContentQuestions] = useState([]);
   const [users, setUsers] = useState([]);
   const [selectedUserId, setSelectedUserId] = useState('');
-  const [selectedLessonId, setSelectedLessonId] = useState('');
   const [courseId, setCourseId] = useState('');
   const [topicId, setTopicId] = useState('');
   const [notice, setNotice] = useState('');
@@ -56,9 +55,6 @@ export default function AdminPage() {
   const selectedUser = users.find((account) => account.id === selectedUserId);
   const selectedUserIsCurrent = selectedUser?.id === user?.id;
   const selectedUserIsBusy = userActionId === selectedUser?.id;
-  const courseTopicIds = new Set(topics.map((topic) => topic.id));
-  const courseLessons = contentLessons.filter((lesson) => courseTopicIds.has(lesson.topic_id));
-  const selectedLesson = courseLessons.find((lesson) => lesson.id === selectedLessonId);
 
   async function refreshContent() {
     const [courseItems, lessonItems, questionItems, users] = await Promise.all([
@@ -183,7 +179,6 @@ export default function AdminPage() {
         setContentQuestions((current) => current.filter((question) => question.topic_id !== id));
       } else if (type === 'lesson') {
         setContentLessons((current) => current.filter((lesson) => lesson.id !== id));
-        setSelectedLessonId((current) => current === id ? '' : current);
       } else {
         setContentQuestions((current) => current.filter((question) => question.id !== id));
       }
@@ -463,7 +458,6 @@ export default function AdminPage() {
             <FormField label="Choose a course to manage">
               <select className="select" style={inputStyle} value={courseId} onChange={(event) => {
                 setCourseId(event.target.value);
-                setSelectedLessonId('');
                 setEditing(null);
               }}>
                 <option value="">Select a course</option>
@@ -485,50 +479,6 @@ export default function AdminPage() {
                     >Delete course</button>
                   </div>
                 </div>
-                <FormField label="Choose a lesson to edit or delete">
-                  <select
-                    className="select"
-                    style={inputStyle}
-                    value={selectedLessonId}
-                    onChange={(event) => setSelectedLessonId(event.target.value)}
-                    disabled={!courseLessons.length || saving}
-                  >
-                    <option value="">Select a lesson</option>
-                    {courseLessons.map((lesson) => (
-                      <option key={lesson.id} value={lesson.id}>{lesson.title}</option>
-                    ))}
-                  </select>
-                </FormField>
-                {selectedLesson && (
-                  <div className="notice" style={{ marginTop: 12 }}>
-                    <div className="row space-between" style={{ flexWrap: 'wrap' }}>
-                      <div>
-                        <strong>{selectedLesson.title}</strong>
-                        <div className="muted" style={{ marginTop: 4 }}>
-                          {topics.find((topic) => topic.id === selectedLesson.topic_id)?.title}
-                        </div>
-                      </div>
-                      <div className="row">
-                        <button
-                          type="button"
-                          className="btn btn-secondary"
-                          disabled={saving}
-                          onClick={() => beginEdit('lesson', selectedLesson)}
-                        >
-                          Edit lesson
-                        </button>
-                        <button
-                          type="button"
-                          className="btn btn-danger"
-                          disabled={saving}
-                          onClick={() => deleteContent('lesson', selectedLesson.id, selectedLesson.title)}
-                        >
-                          Delete lesson
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                )}
                 <div className="stack" style={{ marginTop: 12 }}>
                   {topics.map((topic) => (
                     <div className="card card-pad" key={topic.id}>
@@ -546,6 +496,21 @@ export default function AdminPage() {
                         </div>
                       </div>
                       <div className="stack" style={{ gap: 8, marginTop: 10 }}>
+                        {contentLessons.filter((lesson) => lesson.topic_id === topic.id).map((lesson) => (
+                          <div className="row space-between" key={lesson.id} style={{ flexWrap: 'wrap' }}>
+                            <span>Lesson: {lesson.title}</span>
+                            <div className="row">
+                              <button type="button" className="btn btn-ghost" disabled={saving} onClick={() => beginEdit('lesson', lesson)}>Edit lesson</button>
+                              <button
+                                type="button"
+                                className="btn btn-ghost"
+                                style={{ color: 'var(--color-error)' }}
+                                disabled={saving}
+                                onClick={() => deleteContent('lesson', lesson.id, lesson.title)}
+                              >Delete lesson</button>
+                            </div>
+                          </div>
+                        ))}
                         {contentQuestions.filter((question) => question.topic_id === topic.id).map((question) => (
                           <div className="row space-between" key={question.id} style={{ flexWrap: 'wrap' }}>
                             <span>Quiz: {question.question}</span>
@@ -561,8 +526,9 @@ export default function AdminPage() {
                             </div>
                           </div>
                         ))}
-                        {!contentQuestions.some((question) => question.topic_id === topic.id)
-                          && <span className="muted">No quiz questions in this topic yet.</span>}
+                        {!contentLessons.some((lesson) => lesson.topic_id === topic.id)
+                          && !contentQuestions.some((question) => question.topic_id === topic.id)
+                          && <span className="muted">No lessons or quiz questions in this topic yet.</span>}
                       </div>
                     </div>
                   ))}
