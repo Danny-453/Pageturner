@@ -42,7 +42,7 @@ Password reset is available from the **Forgot password?** link on the sign-in pa
 
 The **AI Tutor** page lets signed-in students ask questions grounded in published course descriptions and lesson notes. Add `GEMINI_API_KEY` to `Backend/.env` (or the backend host's environment settings) to enable it; the key stays on the backend. The backend tries `gemini-flash-lite-latest` and automatically falls back to `gemini-3.1-flash-lite` if the first model is temporarily unavailable. Gemini API free-tier usage is subject to model and request limits, and its terms may allow submitted content to be used to improve Google products. Do not send personal or sensitive information.
 
-Lesson notes and AI tutor replies support Markdown and LaTeX-style math. Use `$\\alpha$` for an inline symbol and put `$$\\sigma = \\frac{F}{A}$$` on its own lines to display an equation.
+Lesson notes and AI tutor replies support Markdown and LaTeX-style math. Use `$\\alpha$` for an inline symbol and put `$$\\sigma = \\frac{F}{A}$$` on its own lines to display an equation. Existing notes using `\\(\\Delta P\\)` or `(\\Delta P)` inline and `[ E = \\frac{F}{A} ]` as a standalone equation are also rendered as math.
 
 ## Build
 

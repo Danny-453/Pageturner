@@ -566,7 +566,7 @@ export default function AdminPage() {
                 {editing.type === 'lesson' && (
                   <>
                     <FormField label="Lesson title"><input className="input" style={inputStyle} value={editing.form.title || ''} onChange={(event) => updateEditForm('title', event.target.value)} required /></FormField>
-                    <FormField label="Lesson content (Markdown, math, and images supported)"><textarea className="input" style={{ ...inputStyle, minHeight: 180 }} value={editing.form.content || ''} onChange={(event) => updateEditForm('content', event.target.value)} required placeholder={'## Key concepts\n\nWrite lesson notes here. Use **bold** for important terms and lists for steps.\n\nInline symbol: $\\alpha$\n\n$$\\sigma = \\frac{F}{A}$$\n\n![Rock layers](https://example.com/rock-layers.jpg)'} /><span className="muted">Markdown supports formatting, math ($...$ inline; $$...$$ for displayed equations), and images. Add an image with ![description](https://public-image-url).</span></FormField>
+                    <FormField label="Lesson content (Markdown, math, and images supported)"><textarea className="input" style={{ ...inputStyle, minHeight: 180 }} value={editing.form.content || ''} onChange={(event) => updateEditForm('content', event.target.value)} required placeholder={'## Key concepts\n\nWrite lesson notes here. Use **bold** for important terms and lists for steps.\n\nInline symbol: $\\alpha$\n\n$$\\sigma = \\frac{F}{A}$$\n\n![Rock layers](https://example.com/rock-layers.jpg)'} /><span className="muted">Use $...$, \\(...\\), or (\\Delta P) for inline math; $$...$$ or [ ... ] on its own line for equations. Images use ![description](https://public-image-url).</span></FormField>
                     <div className="grid-2">
                       <FormField label="Lesson order"><input className="input" style={inputStyle} type="number" min="1" value={editing.form.order ?? 1} onChange={(event) => updateEditForm('order', Number(event.target.value))} required /></FormField>
                       <FormField label="Estimated minutes"><input className="input" style={inputStyle} type="number" min="1" value={editing.form.estimated_minutes ?? 15} onChange={(event) => updateEditForm('estimated_minutes', Number(event.target.value))} required /></FormField>
@@ -673,7 +673,7 @@ export default function AdminPage() {
               </FormField>
               <FormField label="Lesson content (Markdown, math, and images supported)">
                 <textarea className="input" style={{ ...inputStyle, minHeight: 180 }} value={lessonForm.content} onChange={(event) => setLessonForm({ ...lessonForm, content: event.target.value })} required placeholder={'## Key concepts\n\nWrite lesson notes here. Use **bold** for important terms and lists for steps.\n\nInline symbol: $\\alpha$\n\n$$\\sigma = \\frac{F}{A}$$\n\n![Rock layers](https://example.com/rock-layers.jpg)'} />
-                <span className="muted">Markdown supports formatting, math ($...$ inline; $$...$$ for displayed equations), and images. Add an image with ![description](https://public-image-url).</span>
+                <span className="muted">Use $...$, \\(...\\), or (\\Delta P) for inline math; $$...$$ or [ ... ] on its own line for equations. Images use ![description](https://public-image-url).</span>
               </FormField>
               <div className="grid-2">
                 <FormField label="Lesson order">

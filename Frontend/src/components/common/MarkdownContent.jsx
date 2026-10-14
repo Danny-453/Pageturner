@@ -2,13 +2,14 @@ import ReactMarkdown from 'react-markdown';
 import rehypeKatex from 'rehype-katex';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
+import remarkLegacyMath from './remarkLegacyMath';
 import 'katex/dist/katex.min.css';
 
 export default function MarkdownContent({ children, className = '' }) {
   return (
     <div className={`markdown-content ${className}`.trim()}>
       <ReactMarkdown
-        remarkPlugins={[remarkGfm, remarkMath]}
+        remarkPlugins={[remarkGfm, remarkMath, remarkLegacyMath]}
         rehypePlugins={[rehypeKatex]}
         components={{
           img: ({ alt, src, title }) => (
