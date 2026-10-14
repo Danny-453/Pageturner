@@ -38,7 +38,7 @@ export default function AdminPage() {
   const [editing, setEditing] = useState(null);
   const [courseForm, setCourseForm] = useState({ code: '', title: '', description: '', academic_level_id: '' });
   const [topicForm, setTopicForm] = useState({ title: '', description: '', order: 1 });
-  const [lessonForm, setLessonForm] = useState({ title: '', content: '', order: 1, estimated_minutes: 15 });
+  const [lessonForm, setLessonForm] = useState({ title: '', content: '', video_url: '', order: 1, estimated_minutes: 15 });
   const [questionForm, setQuestionForm] = useState({
     question_text: '',
     difficulty: 'medium',
@@ -232,7 +232,13 @@ export default function AdminPage() {
         : type === 'course'
           ? { code: form.code, title: form.title, description: form.description, academic_level_id: form.academic_level_id }
           : type === 'lesson'
-            ? { title: form.title, content: form.content, order: Number(form.order), estimated_minutes: Number(form.estimated_minutes) }
+            ? {
+              title: form.title,
+              content: form.content,
+              video_url: form.video_url?.trim() || null,
+              order: Number(form.order),
+              estimated_minutes: Number(form.estimated_minutes),
+            }
             : { title: form.title, description: form.description, order: Number(form.order) };
       await apiRequest(path, { method: 'PATCH', body: JSON.stringify(body) });
       await refreshContent();
@@ -567,6 +573,10 @@ export default function AdminPage() {
                   <>
                     <FormField label="Lesson title"><input className="input" style={inputStyle} value={editing.form.title || ''} onChange={(event) => updateEditForm('title', event.target.value)} required /></FormField>
                     <FormField label="Lesson content (Markdown, math, and images supported)"><textarea className="input" style={{ ...inputStyle, minHeight: 180 }} value={editing.form.content || ''} onChange={(event) => updateEditForm('content', event.target.value)} required placeholder={'## Key concepts\n\nWrite lesson notes here. Use **bold** for important terms and lists for steps.\n\nInline symbol: $\\alpha$\n\n$$\\sigma = \\frac{F}{A}$$\n\n![Rock layers](https://example.com/rock-layers.jpg)'} /><span className="muted">Use $...$, \\(...\\), or (\\Delta P) for inline math; $$...$$ or [ ... ] on its own line for equations. Images use ![description](https://public-image-url).</span></FormField>
+                    <FormField label="Lesson video URL (optional)">
+                      <input className="input" style={inputStyle} type="url" maxLength={2048} value={editing.form.video_url || ''} onChange={(event) => updateEditForm('video_url', event.target.value)} placeholder="https://www.youtube.com/watch?v=..." />
+                      <span className="muted">YouTube, Vimeo, and direct MP4, WebM, or OGG links play in the lesson. Other HTTPS links open separately.</span>
+                    </FormField>
                     <div className="grid-2">
                       <FormField label="Lesson order"><input className="input" style={inputStyle} type="number" min="1" value={editing.form.order ?? 1} onChange={(event) => updateEditForm('order', Number(event.target.value))} required /></FormField>
                       <FormField label="Estimated minutes"><input className="input" style={inputStyle} type="number" min="1" value={editing.form.estimated_minutes ?? 15} onChange={(event) => updateEditForm('estimated_minutes', Number(event.target.value))} required /></FormField>
@@ -665,8 +675,12 @@ export default function AdminPage() {
                 {topics.map((topic) => <option key={topic.id} value={topic.id}>{topic.title}</option>)}
               </select>
             </FormField>
-            <form onSubmit={(event) => submitContent(event, '/lessons', { ...lessonForm, topic_id: topicId }, () => {
-              setLessonForm({ title: '', content: '', order: 1, estimated_minutes: 15 });
+            <form onSubmit={(event) => submitContent(event, '/lessons', {
+              ...lessonForm,
+              video_url: lessonForm.video_url.trim() || null,
+              topic_id: topicId,
+            }, () => {
+              setLessonForm({ title: '', content: '', video_url: '', order: 1, estimated_minutes: 15 });
             })}>
               <FormField label="Lesson title">
                 <input className="input" style={inputStyle} value={lessonForm.title} onChange={(event) => setLessonForm({ ...lessonForm, title: event.target.value })} required />
@@ -674,6 +688,10 @@ export default function AdminPage() {
               <FormField label="Lesson content (Markdown, math, and images supported)">
                 <textarea className="input" style={{ ...inputStyle, minHeight: 180 }} value={lessonForm.content} onChange={(event) => setLessonForm({ ...lessonForm, content: event.target.value })} required placeholder={'## Key concepts\n\nWrite lesson notes here. Use **bold** for important terms and lists for steps.\n\nInline symbol: $\\alpha$\n\n$$\\sigma = \\frac{F}{A}$$\n\n![Rock layers](https://example.com/rock-layers.jpg)'} />
                 <span className="muted">Use $...$, \\(...\\), or (\\Delta P) for inline math; $$...$$ or [ ... ] on its own line for equations. Images use ![description](https://public-image-url).</span>
+              </FormField>
+              <FormField label="Lesson video URL (optional)">
+                <input className="input" style={inputStyle} type="url" maxLength={2048} value={lessonForm.video_url} onChange={(event) => setLessonForm({ ...lessonForm, video_url: event.target.value })} placeholder="https://www.youtube.com/watch?v=..." />
+                <span className="muted">YouTube, Vimeo, and direct MP4, WebM, or OGG links play in the lesson. Other HTTPS links open separately.</span>
               </FormField>
               <div className="grid-2">
                 <FormField label="Lesson order">

@@ -115,6 +115,7 @@ class Lesson(TimestampMixin, Base):
     topic_id: Mapped[str] = mapped_column(ForeignKey("topics.id", ondelete="CASCADE"), nullable=False)
     title: Mapped[str] = mapped_column(String(180), nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=False)
+    video_url: Mapped[str | None] = mapped_column(String(2048), nullable=True)
     order: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
     estimated_minutes: Mapped[int] = mapped_column(Integer, default=15, nullable=False)
 

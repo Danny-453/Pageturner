@@ -54,6 +54,8 @@ Administrators can manage accounts from the admin page: deactivation blocks sign
 
 The AI tutor is available to signed-in users from the **AI Tutor** navigation link. It answers questions using the selected published course’s description, topics, and lesson notes. Chat history is held in the browser only; each request sends at most the recent conversation to Gemini. Configure `GEMINI_API_KEY` in the backend environment to enable it. Gemini API free-tier access has model and request limits that can change; review Google's current [pricing and data-use terms](https://ai.google.dev/gemini-api/docs/pricing) before sending student information. Do not send personal or sensitive information to the free tier.
 
+Administrators can attach an optional HTTPS video URL to each lesson. Run `python -m alembic upgrade head` to add the lesson video URL column before deploying the updated API. YouTube, Vimeo, and direct MP4, WebM, or OGG links are supported on the student lesson page.
+
 ## Deploy to Google Cloud Run with Neon
 
 The backend includes a Dockerfile for Cloud Run. Keep the existing Neon database and use its pooled connection string for the running API. Use the direct Neon connection for applying database migrations.
