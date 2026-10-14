@@ -1,6 +1,7 @@
 import logging
 
-import httpx
+from google import genai
+from google.genai import errors, types
 
 from app.core.config import settings
 from app.models import Course
@@ -9,12 +10,8 @@ from app.schemas.ai import TutorMessage
 logger = logging.getLogger(__name__)
 MAX_COURSE_CONTEXT_CHARS = 18000
 MAX_REPLY_TOKENS = 600
-AI_REQUEST_TIMEOUT_SECONDS = 120
-RETRYABLE_STATUS_CODES = {404, 408, 409, 429, 500, 502, 503, 504}
-LEGACY_MODEL_IDS = {
-    "openai/gpt-6-astra": "gpt-6-astra",
-    "anthropic/claude-opus-4.8": "claude-opus-4-8",
-}
+GEMINI_REQUEST_TIMEOUT_MS = 120_000
+RETRYABLE_GEMINI_STATUS_CODES = {404, 429, 500, 502, 503, 504}
 
 
 class TutorNotConfiguredError(RuntimeError):
@@ -38,73 +35,29 @@ def course_context(course: Course) -> str:
 
 
 def configured_models() -> list[str]:
-    models = []
-    for entry in settings.ai_tutor_models.split(","):
-        entry = entry.strip()
-        if not entry:
-            continue
-        model = LEGACY_MODEL_IDS.get(entry, entry)
-        if model not in models:
-            models.append(model)
+    models = list(dict.fromkeys(
+        model.strip() for model in settings.gemini_models.split(",") if model.strip()
+    ))
     if not models:
-        raise TutorNotConfiguredError("No AI tutor models are configured.")
+        raise TutorNotConfiguredError("No Gemini tutor models are configured.")
     return models
 
 
-def _request_payload(
-    model: str,
-    instruction: str,
-    messages: list[TutorMessage],
-) -> dict:
-    return {
-        "model": model,
-        "messages": [
-            {"role": "system", "content": instruction},
-            *[
-                {"role": item.role, "content": item.content}
-                for item in messages
-            ],
-        ],
-        "max_tokens": MAX_REPLY_TOKENS,
-    }
-
-
-def _response_text(response: httpx.Response) -> str:
-    payload = response.json()
-    try:
-        content = payload["choices"][0]["message"]["content"]
-    except (KeyError, IndexError, TypeError) as exc:
-        raise ValueError("AgentRouter returned a response without assistant text.") from exc
-    if isinstance(content, str):
-        return content
-    if isinstance(content, list):
-        return "".join(
-            item.get("text", "")
-            for item in content
-            if isinstance(item, dict) and item.get("type") == "text"
-        )
-    return ""
-
-
-def _generate_answer(
-    model: str,
-    instruction: str,
-    messages: list[TutorMessage],
-) -> str:
-    response = httpx.post(
-        f"{settings.ai_tutor_base_url.rstrip('/')}/chat/completions",
-        headers={
-            "Authorization": f"Bearer {settings.agentrouter_api_key}",
-            "Content-Type": "application/json",
-        },
-        json=_request_payload(model, instruction, messages),
-        timeout=AI_REQUEST_TIMEOUT_SECONDS,
-    )
-    response.raise_for_status()
-    return _response_text(response).strip()
-
-
 def ask_tutor(course: Course, messages: list[TutorMessage]) -> str:
+    if not settings.gemini_api_key:
+        raise TutorNotConfiguredError("The AI tutor is not configured. Contact the administrator.")
+
+    client = genai.Client(
+        api_key=settings.gemini_api_key,
+        http_options=types.HttpOptions(timeout=GEMINI_REQUEST_TIMEOUT_MS),
+    )
+    conversation = [
+        types.Content(
+            role="model" if item.role == "assistant" else "user",
+            parts=[types.Part(text=item.content)],
+        )
+        for item in messages
+    ]
     system_instruction = (
         "You are PageTurners, a supportive geology study tutor. Help the student learn by "
         "explaining concepts clearly, asking guiding questions when useful, and giving "
@@ -120,45 +73,37 @@ def ask_tutor(course: Course, messages: list[TutorMessage]) -> str:
         f"<course_material>\n{course_context(course)}\n</course_material>"
     )
 
-    if not settings.agentrouter_api_key:
-        raise TutorNotConfiguredError(
-            "The AI tutor is not configured. Add an AgentRouter API key."
-        )
-
     models = configured_models()
     for index, model in enumerate(models):
         try:
-            answer = _generate_answer(model, system_instruction, messages)
-        except httpx.HTTPStatusError as exc:
-            status_code = exc.response.status_code
-            if status_code not in RETRYABLE_STATUS_CODES or index == len(models) - 1:
-                logger.exception("AgentRouter tutor request failed for model %s.", model)
-                raise TutorUnavailableError(
-                    "The AI tutor is temporarily unavailable. Please try again."
-                ) from exc
-            logger.warning(
-                "AgentRouter tutor model %s returned status %s; trying the next configured model.",
-                model,
-                status_code,
+            result = client.models.generate_content(
+                model=model,
+                contents=conversation,
+                config=types.GenerateContentConfig(
+                    system_instruction=system_instruction,
+                    max_output_tokens=MAX_REPLY_TOKENS,
+                    temperature=0.4,
+                ),
             )
-            continue
-        except (httpx.TimeoutException, httpx.RequestError, ValueError) as exc:
-            if index == len(models) - 1:
-                logger.exception("AgentRouter tutor request failed for model %s.", model)
+        except errors.APIError as exc:
+            if exc.code not in RETRYABLE_GEMINI_STATUS_CODES or index == len(models) - 1:
+                logger.exception("Gemini tutor request failed for model %s.", model)
                 raise TutorUnavailableError(
                     "The AI tutor is temporarily unavailable. Please try again."
                 ) from exc
             logger.warning(
-                "AgentRouter tutor request failed for model %s; trying the next configured model.",
+                "Gemini tutor model %s returned status %s; trying the next configured model.",
                 model,
+                exc.code,
             )
             continue
 
-        if answer:
+        answer = result.text
+        if answer and answer.strip():
             if index:
-                logger.info("AgentRouter tutor answered using fallback model %s.", model)
-            return answer
-        logger.warning("AgentRouter tutor model %s returned an empty response.", model)
+                logger.info("Gemini tutor answered using fallback model %s.", model)
+            return answer.strip()
+        logger.warning("Gemini tutor model %s returned an empty response.", model)
 
-    logger.error("All configured AI tutor models returned empty responses.")
+    logger.error("All configured Gemini tutor models returned empty responses.")
     raise TutorUnavailableError("The AI tutor could not produce an answer. Please try again.")

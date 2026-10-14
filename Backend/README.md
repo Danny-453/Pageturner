@@ -36,7 +36,7 @@ Edit `.env` and configure `DATABASE_URL` for your PostgreSQL provider:
 - `CORS_ORIGINS` to include the Vite frontend origin (the example includes `http://localhost:5173` and `http://127.0.0.1:5173`)
 - `FRONTEND_URL` to the frontend origin used in password reset links
 - `SMTP_HOST`, `SMTP_PORT`, and `SMTP_SENDER_EMAIL` to enable password reset emails; set `SMTP_USERNAME` and `SMTP_PASSWORD` if your SMTP provider requires authentication. Use `SMTP_USE_SSL=true` for implicit TLS (typically port 465); otherwise the server uses STARTTLS (typically port 587).
-- `AGENTROUTER_API_KEY` for the AI study tutor. The AgentRouter-compatible API base URL defaults to `https://agentrouter.org/v1`; set `AI_TUTOR_BASE_URL` only if your account specifies a different base URL. `AI_TUTOR_MODELS` is an ordered comma-separated list of model IDs; by default it tries `gpt-6-astra` and then `claude-opus-4-8` using the same key. The second model is tried when the first is temporarily unavailable. Keep the key private and make sure the account can access both models. `OPENROUTER_API_KEY` is also accepted as a temporary backwards-compatible environment-variable name. The tutor sends course lesson content and the current chat to AgentRouter.
+- `GEMINI_API_KEY` to enable the AI study tutor and optionally `GEMINI_MODELS` to set an ordered, comma-separated model list. The defaults try `gemini-flash-lite-latest` first and automatically fall back to `gemini-3.1-flash-lite` on temporary service failures. Create a key in [Google AI Studio](https://aistudio.google.com/api-keys) and keep it private. The tutor sends course lesson content and the current chat to Gemini.
 
 Then initialize the database and start the API. Run migrations against the direct Neon endpoint, and use the same `DATABASE_URL` for seeding:
 
@@ -52,7 +52,7 @@ Password reset requires an SMTP provider. Configure its SMTP settings above, set
 
 Administrators can manage accounts from the admin page: deactivation blocks sign-in but preserves account data, reactivation restores access, and permanent deletion removes the account and its associated learning records. The API protects the current administrator and prevents removing the last active administrator.
 
-The AI tutor is available to signed-in users from the **AI Tutor** navigation link. It answers questions using the selected published course’s description, topics, and lesson notes. Chat history is held in the browser only; each request sends at most the recent conversation to AgentRouter. Set `AGENTROUTER_API_KEY` in the backend environment and use `AI_TUTOR_MODELS` to set the model fallback order. Check AgentRouter's current pricing and data-use terms before sending student information, and do not send personal or sensitive information.
+The AI tutor is available to signed-in users from the **AI Tutor** navigation link. It answers questions using the selected published course’s description, topics, and lesson notes. Chat history is held in the browser only; each request sends at most the recent conversation to Gemini. Configure `GEMINI_API_KEY` in the backend environment to enable it. Gemini API free-tier access has model and request limits that can change; review Google's current [pricing and data-use terms](https://ai.google.dev/gemini-api/docs/pricing) before sending student information. Do not send personal or sensitive information to the free tier.
 
 Administrators can attach an optional HTTPS video URL to each lesson. Run `python -m alembic upgrade head` to add the lesson video URL column before deploying the updated API. YouTube, Vimeo, and direct MP4, WebM, or OGG links are supported on the student lesson page.
 
@@ -68,9 +68,9 @@ The backend includes a Dockerfile for Cloud Run. Keep the existing Neon database
    gcloud services enable run.googleapis.com cloudbuild.googleapis.com secretmanager.googleapis.com
    ```
 
-2. Create secrets in **Google Cloud Console → Security → Secret Manager** for `DATABASE_URL`, `SECRET_KEY`, and `AGENTROUTER_API_KEY`. Add `SMTP_PASSWORD` too if password-reset email uses authenticated SMTP. Use the Neon **pooled** `postgresql+psycopg://` URL for `DATABASE_URL`; keep the direct URL private for the migration step. Do not add `.env` to the image or repository.
+2. Create secrets in **Google Cloud Console → Security → Secret Manager** for `DATABASE_URL`, `SECRET_KEY`, and `GEMINI_API_KEY`. Add `SMTP_PASSWORD` too if password-reset email uses authenticated SMTP. Use the Neon **pooled** `postgresql+psycopg://` URL for `DATABASE_URL`; keep the direct URL private for the migration step. Do not add `.env` to the image or repository.
 3. Before deploying a release that includes new migrations, run `python -m alembic upgrade head` from this directory with the direct Neon URL configured in your local environment. Migrations are deliberately not run as part of every Cloud Run instance startup.
-4. Deploy from the repository root. Replace the project ID, region, and mail values. Put the AgentRouter key and other secrets in Secret Manager; ordinary values such as SMTP host/port and frontend URL can be set as plain environment variables.
+4. Deploy from the repository root. Replace the project ID, region, and mail values. Put the Gemini key and other secrets in Secret Manager; ordinary values such as SMTP host/port and frontend URL can be set as plain environment variables.
 
    ```powershell
    gcloud run deploy pageturners-api `
@@ -79,15 +79,15 @@ The backend includes a Dockerfile for Cloud Run. Keep the existing Neon database
      --region us-central1 `
      --allow-unauthenticated `
      --max 3 `
-     --set-secrets "DATABASE_URL=DATABASE_URL:latest,SECRET_KEY=SECRET_KEY:latest,AGENTROUTER_API_KEY=AGENTROUTER_API_KEY:latest,SMTP_PASSWORD=SMTP_PASSWORD:latest" `
-     --set-env-vars "^#^APP_ENV=production#DEBUG=false#FRONTEND_URL=https://YOUR-SITE.netlify.app#CORS_ORIGINS=https://YOUR-SITE.netlify.app#AI_TUTOR_BASE_URL=https://agentrouter.org/v1#AI_TUTOR_MODELS=gpt-6-astra,claude-opus-4-8#SMTP_HOST=YOUR_SMTP_HOST#SMTP_PORT=587#SMTP_USERNAME=YOUR_SMTP_USERNAME#SMTP_SENDER_EMAIL=YOUR_VERIFIED_SENDER#SMTP_USE_SSL=false"
+     --set-secrets "DATABASE_URL=DATABASE_URL:latest,SECRET_KEY=SECRET_KEY:latest,GEMINI_API_KEY=GEMINI_API_KEY:latest,SMTP_PASSWORD=SMTP_PASSWORD:latest" `
+     --set-env-vars "^#^APP_ENV=production#DEBUG=false#FRONTEND_URL=https://YOUR-SITE.netlify.app#CORS_ORIGINS=https://YOUR-SITE.netlify.app#GEMINI_MODELS=gemini-flash-lite-latest,gemini-3.1-flash-lite#SMTP_HOST=YOUR_SMTP_HOST#SMTP_PORT=587#SMTP_USERNAME=YOUR_SMTP_USERNAME#SMTP_SENDER_EMAIL=YOUR_VERIFIED_SENDER#SMTP_USE_SSL=false"
    ```
 
    If SMTP is not configured, remove the SMTP values and `SMTP_PASSWORD` secret mapping. The first deployment may need additional permissions to let the Cloud Run runtime service account access each secret; grant it **Secret Manager Secret Accessor** on those secrets when prompted or in IAM.
 5. Copy the deployed service URL printed by `gcloud run deploy` and verify `https://YOUR-SERVICE-URL/health` reports `"database":"ok"`.
 6. In Netlify, set `VITE_API_BASE_URL` to `https://YOUR-SERVICE-URL/api/v1` and redeploy the frontend. Set `FRONTEND_URL` and `CORS_ORIGINS` in the Cloud Run service to the exact Netlify site origin (no trailing slash), then deploy a new backend revision.
 
-Cloud Run requires a Google Cloud billing account even when the service stays within free allowances. Cloud Run, Neon, SMTP, and AgentRouter usage is governed by their providers' current plans and quotas. Set a Cloud Run maximum instance count and billing budget alerts; free-tier terms do not guarantee zero charges.
+Cloud Run requires a Google Cloud billing account even when the service stays within free allowances. Cloud Run, Neon, SMTP, and Gemini usage is governed by their providers' current plans and quotas. Set a Cloud Run maximum instance count and billing budget alerts; free-tier terms do not guarantee zero charges.
 
 ## Tests
 

@@ -1,19 +1,10 @@
 from types import SimpleNamespace
 
-import httpx
 import pytest
 from pydantic import ValidationError
 
 from app.schemas.ai import TutorMessage, TutorRequest
 from app.services import ai_tutor_service
-
-
-def make_response(status_code, payload):
-    return httpx.Response(
-        status_code,
-        json=payload,
-        request=httpx.Request("POST", "https://agentrouter.org/v1/chat/completions"),
-    )
 
 
 def sample_course():
@@ -44,103 +35,101 @@ def test_course_context_orders_topics_and_lessons():
     assert context.index("Lesson: Rock cycle") < context.index("Lesson: Igneous")
 
 
-def test_ask_tutor_uses_agentrouter_key_endpoint_and_model(monkeypatch):
+def test_ask_tutor_uses_server_key_and_returns_answer(monkeypatch):
     calls = {}
 
-    def fake_post(url, **kwargs):
-        calls.update(url=url, **kwargs)
-        return make_response(
-            200,
-            {"choices": [{"message": {"role": "assistant", "content": "A rock is naturally occurring."}}]},
-        )
+    class FakeGemini:
+        def __init__(self, **kwargs):
+            calls["client"] = kwargs
+            self.models = SimpleNamespace(
+                generate_content=lambda **kwargs: (
+                    calls.update(request=kwargs)
+                    or SimpleNamespace(text="A rock is naturally occurring.")
+                )
+            )
 
-    monkeypatch.setattr(ai_tutor_service.settings, "agentrouter_api_key", "agentrouter-test-key")
-    monkeypatch.setattr(ai_tutor_service.settings, "ai_tutor_base_url", "https://agentrouter.org/v1")
-    monkeypatch.setattr(ai_tutor_service.settings, "ai_tutor_models", "gpt-6-astra")
-    monkeypatch.setattr(ai_tutor_service.httpx, "post", fake_post)
+    monkeypatch.setattr(ai_tutor_service.settings, "gemini_api_key", "test-key")
+    monkeypatch.setattr(ai_tutor_service.settings, "gemini_models", "test-model")
+    monkeypatch.setattr(ai_tutor_service.genai, "Client", FakeGemini)
 
     answer = ai_tutor_service.ask_tutor(sample_course(), sample_messages())
 
     assert answer == "A rock is naturally occurring."
-    assert calls["url"] == "https://agentrouter.org/v1/chat/completions"
-    assert calls["headers"]["Authorization"] == "Bearer agentrouter-test-key"
-    assert calls["json"]["model"] == "gpt-6-astra"
-    assert calls["json"]["messages"][1:] == [{"role": "user", "content": "What is a rock?"}]
-    assert calls["json"]["messages"][0]["role"] == "system"
-    assert "never invent or guess image URLs" in calls["json"]["messages"][0]["content"]
-    assert calls["timeout"] == ai_tutor_service.AI_REQUEST_TIMEOUT_SECONDS
+    assert calls["client"]["api_key"] == "test-key"
+    assert calls["client"]["http_options"].timeout == ai_tutor_service.GEMINI_REQUEST_TIMEOUT_MS
+    assert calls["request"]["model"] == "test-model"
+    assert calls["request"]["contents"][-1].role == "user"
+    assert "never invent or guess image URLs" in calls["request"]["config"].system_instruction
 
 
-def test_ask_tutor_falls_back_to_claude_through_agentrouter(monkeypatch):
-    attempted = []
+def test_ask_tutor_uses_next_model_after_temporary_failure(monkeypatch):
+    attempted_models = []
 
-    def fake_post(url, **kwargs):
-        model = kwargs["json"]["model"]
-        attempted.append((url, kwargs["headers"]["Authorization"], model))
-        if model == "gpt-6-astra":
-            return make_response(503, {"error": {"message": "Temporarily unavailable"}})
-        return make_response(
-            200,
-            {"choices": [{"message": {"role": "assistant", "content": "Claude answered."}}]},
-        )
+    class FakeGemini:
+        def __init__(self, **kwargs):
+            self.models = SimpleNamespace(generate_content=self.generate_content)
 
-    monkeypatch.setattr(ai_tutor_service.settings, "agentrouter_api_key", "agentrouter-test-key")
-    monkeypatch.setattr(ai_tutor_service.settings, "ai_tutor_base_url", "https://agentrouter.org/v1")
-    monkeypatch.setattr(ai_tutor_service.settings, "ai_tutor_models", "gpt-6-astra,claude-opus-4-8")
-    monkeypatch.setattr(ai_tutor_service.httpx, "post", fake_post)
+        def generate_content(self, **kwargs):
+            attempted_models.append(kwargs["model"])
+            if kwargs["model"] == "primary-model":
+                raise ai_tutor_service.errors.ServerError(
+                    503,
+                    {"error": {"message": "Model is temporarily unavailable"}},
+                )
+            return SimpleNamespace(text="Fallback model answered.")
+
+    monkeypatch.setattr(ai_tutor_service.settings, "gemini_api_key", "test-key")
+    monkeypatch.setattr(ai_tutor_service.settings, "gemini_models", "primary-model, fallback-model")
+    monkeypatch.setattr(ai_tutor_service.genai, "Client", FakeGemini)
 
     answer = ai_tutor_service.ask_tutor(sample_course(), sample_messages())
 
-    assert answer == "Claude answered."
-    assert attempted == [
-        ("https://agentrouter.org/v1/chat/completions", "Bearer agentrouter-test-key", "gpt-6-astra"),
-        ("https://agentrouter.org/v1/chat/completions", "Bearer agentrouter-test-key", "claude-opus-4-8"),
-    ]
+    assert answer == "Fallback model answered."
+    assert attempted_models == ["primary-model", "fallback-model"]
 
 
 def test_ask_tutor_does_not_fallback_on_authentication_failure(monkeypatch):
-    attempted = []
+    attempted_models = []
 
-    def fake_post(url, **kwargs):
-        attempted.append(kwargs["json"]["model"])
-        return make_response(401, {"error": {"message": "Invalid API key"}})
+    class FakeGemini:
+        def __init__(self, **kwargs):
+            self.models = SimpleNamespace(generate_content=self.generate_content)
 
-    monkeypatch.setattr(ai_tutor_service.settings, "agentrouter_api_key", "agentrouter-test-key")
-    monkeypatch.setattr(ai_tutor_service.settings, "ai_tutor_base_url", "https://agentrouter.org/v1")
-    monkeypatch.setattr(ai_tutor_service.settings, "ai_tutor_models", "gpt-6-astra,claude-opus-4-8")
-    monkeypatch.setattr(ai_tutor_service.httpx, "post", fake_post)
+        def generate_content(self, **kwargs):
+            attempted_models.append(kwargs["model"])
+            raise ai_tutor_service.errors.ClientError(
+                401,
+                {"error": {"message": "Invalid API key"}},
+            )
+
+    monkeypatch.setattr(ai_tutor_service.settings, "gemini_api_key", "test-key")
+    monkeypatch.setattr(ai_tutor_service.settings, "gemini_models", "primary-model,fallback-model")
+    monkeypatch.setattr(ai_tutor_service.genai, "Client", FakeGemini)
 
     with pytest.raises(ai_tutor_service.TutorUnavailableError):
         ai_tutor_service.ask_tutor(sample_course(), sample_messages())
 
-    assert attempted == ["gpt-6-astra"]
+    assert attempted_models == ["primary-model"]
 
 
-def test_ask_tutor_requires_agentrouter_key(monkeypatch):
-    monkeypatch.setattr(ai_tutor_service.settings, "agentrouter_api_key", None)
+def test_ask_tutor_requires_gemini_key(monkeypatch):
+    monkeypatch.setattr(ai_tutor_service.settings, "gemini_api_key", None)
 
-    with pytest.raises(ai_tutor_service.TutorNotConfiguredError, match="AgentRouter API key"):
+    with pytest.raises(ai_tutor_service.TutorNotConfiguredError):
         ai_tutor_service.ask_tutor(sample_course(), sample_messages())
 
 
 def test_configured_models_keeps_order_and_deduplicates(monkeypatch):
     monkeypatch.setattr(
         ai_tutor_service.settings,
-        "ai_tutor_models",
-        " gpt-6-astra, claude-opus-4-8, gpt-6-astra ",
+        "gemini_models",
+        " gemini-flash-lite-latest, gemini-3.1-flash-lite, gemini-flash-lite-latest ",
     )
 
-    assert ai_tutor_service.configured_models() == ["gpt-6-astra", "claude-opus-4-8"]
-
-
-def test_configured_models_normalizes_previous_openrouter_ids(monkeypatch):
-    monkeypatch.setattr(
-        ai_tutor_service.settings,
-        "ai_tutor_models",
-        "openai/gpt-6-astra,anthropic/claude-opus-4.8",
-    )
-
-    assert ai_tutor_service.configured_models() == ["gpt-6-astra", "claude-opus-4-8"]
+    assert ai_tutor_service.configured_models() == [
+        "gemini-flash-lite-latest",
+        "gemini-3.1-flash-lite",
+    ]
 
 
 def test_tutor_request_allows_longer_assistant_replies():
