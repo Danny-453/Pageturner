@@ -1,10 +1,27 @@
 from types import SimpleNamespace
 
+import httpx
 import pytest
 from pydantic import ValidationError
 
 from app.schemas.ai import TutorMessage, TutorRequest
 from app.services import ai_tutor_service
+
+
+def make_response(status_code, payload):
+    return httpx.Response(
+        status_code,
+        json=payload,
+        request=httpx.Request("POST", ai_tutor_service.OPENROUTER_CHAT_COMPLETIONS_URL),
+    )
+
+
+def sample_course():
+    return SimpleNamespace(title="Geology", code="GEO-101", description="", topics=[])
+
+
+def sample_messages():
+    return [TutorMessage(role="user", content="What is a rock?")]
 
 
 def test_course_context_orders_topics_and_lessons():
@@ -27,100 +44,99 @@ def test_course_context_orders_topics_and_lessons():
     assert context.index("Lesson: Rock cycle") < context.index("Lesson: Igneous")
 
 
-def test_ask_tutor_uses_server_key_and_returns_answer(monkeypatch):
+def test_ask_tutor_uses_single_openrouter_key_and_returns_answer(monkeypatch):
     calls = {}
 
-    class FakeGemini:
-        def __init__(self, **kwargs):
-            calls["client"] = kwargs
-            self.models = SimpleNamespace(
-                generate_content=lambda **kwargs: (
-                    calls.update(request=kwargs)
-                    or SimpleNamespace(text="A rock is naturally occurring.")
-                )
-            )
+    def fake_post(url, **kwargs):
+        calls.update(url=url, **kwargs)
+        return make_response(
+            200,
+            {"choices": [{"message": {"role": "assistant", "content": "A rock is naturally occurring."}}]},
+        )
 
-    monkeypatch.setattr(ai_tutor_service.settings, "gemini_api_key", "test-key")
-    monkeypatch.setattr(ai_tutor_service.settings, "gemini_models", "test-model")
-    monkeypatch.setattr(ai_tutor_service.genai, "Client", FakeGemini)
-
-    answer = ai_tutor_service.ask_tutor(
-        SimpleNamespace(title="Geology", code="GEO-101", description="", topics=[]),
-        [TutorMessage(role="user", content="What is a rock?")],
+    monkeypatch.setattr(ai_tutor_service.settings, "openrouter_api_key", "router-test-key")
+    monkeypatch.setattr(
+        ai_tutor_service.settings,
+        "ai_tutor_models",
+        "openai/gpt-6-astra",
     )
+    monkeypatch.setattr(ai_tutor_service.httpx, "post", fake_post)
+
+    answer = ai_tutor_service.ask_tutor(sample_course(), sample_messages())
 
     assert answer == "A rock is naturally occurring."
-    assert calls["client"]["api_key"] == "test-key"
-    assert calls["client"]["http_options"].timeout == ai_tutor_service.GEMINI_REQUEST_TIMEOUT_MS
-    assert calls["request"]["model"] == "test-model"
-    assert calls["request"]["contents"][-1].role == "user"
-    assert "never invent or guess image URLs" in calls["request"]["config"].system_instruction
+    assert calls["url"] == ai_tutor_service.OPENROUTER_CHAT_COMPLETIONS_URL
+    assert calls["headers"]["Authorization"] == "Bearer router-test-key"
+    assert calls["json"]["model"] == "openai/gpt-6-astra"
+    assert calls["json"]["messages"][1:] == [{"role": "user", "content": "What is a rock?"}]
+    assert calls["json"]["messages"][0]["role"] == "system"
+    assert "never invent or guess image URLs" in calls["json"]["messages"][0]["content"]
+    assert calls["timeout"] == ai_tutor_service.AI_REQUEST_TIMEOUT_SECONDS
 
 
-def test_ask_tutor_uses_next_model_after_temporary_failure(monkeypatch):
-    attempted_models = []
+def test_ask_tutor_falls_back_to_claude_through_openrouter(monkeypatch):
+    attempted = []
 
-    class FakeGemini:
-        def __init__(self, **kwargs):
-            self.models = SimpleNamespace(generate_content=self.generate_content)
+    def fake_post(url, **kwargs):
+        model = kwargs["json"]["model"]
+        attempted.append((url, kwargs["headers"]["Authorization"], model))
+        if model == "openai/gpt-6-astra":
+            return make_response(503, {"error": {"message": "Temporarily unavailable"}})
+        return make_response(
+            200,
+            {"choices": [{"message": {"role": "assistant", "content": "Claude answered."}}]},
+        )
 
-        def generate_content(self, **kwargs):
-            attempted_models.append(kwargs["model"])
-            if kwargs["model"] == "primary-model":
-                raise ai_tutor_service.errors.ServerError(
-                    503,
-                    {"error": {"message": "Model is temporarily unavailable"}},
-                )
-            return SimpleNamespace(text="Fallback model answered.")
-
-    monkeypatch.setattr(ai_tutor_service.settings, "gemini_api_key", "test-key")
-    monkeypatch.setattr(ai_tutor_service.settings, "gemini_models", "primary-model, fallback-model")
-    monkeypatch.setattr(ai_tutor_service.genai, "Client", FakeGemini)
-
-    answer = ai_tutor_service.ask_tutor(
-        SimpleNamespace(title="Geology", code="GEO-101", description="", topics=[]),
-        [TutorMessage(role="user", content="What is a rock?")],
+    monkeypatch.setattr(ai_tutor_service.settings, "openrouter_api_key", "router-test-key")
+    monkeypatch.setattr(
+        ai_tutor_service.settings,
+        "ai_tutor_models",
+        "openai/gpt-6-astra,anthropic/claude-opus-4.8",
     )
+    monkeypatch.setattr(ai_tutor_service.httpx, "post", fake_post)
 
-    assert answer == "Fallback model answered."
-    assert attempted_models == ["primary-model", "fallback-model"]
+    answer = ai_tutor_service.ask_tutor(sample_course(), sample_messages())
+
+    assert answer == "Claude answered."
+    assert attempted == [
+        (ai_tutor_service.OPENROUTER_CHAT_COMPLETIONS_URL, "Bearer router-test-key", "openai/gpt-6-astra"),
+        (ai_tutor_service.OPENROUTER_CHAT_COMPLETIONS_URL, "Bearer router-test-key", "anthropic/claude-opus-4.8"),
+    ]
 
 
 def test_ask_tutor_does_not_fallback_on_authentication_failure(monkeypatch):
-    attempted_models = []
+    attempted = []
 
-    class FakeGemini:
-        def __init__(self, **kwargs):
-            self.models = SimpleNamespace(generate_content=self.generate_content)
+    def fake_post(url, **kwargs):
+        attempted.append(kwargs["json"]["model"])
+        return make_response(401, {"error": {"message": "Invalid API key"}})
 
-        def generate_content(self, **kwargs):
-            attempted_models.append(kwargs["model"])
-            raise ai_tutor_service.errors.ClientError(
-                401,
-                {"error": {"message": "Invalid API key"}},
-            )
-
-    monkeypatch.setattr(ai_tutor_service.settings, "gemini_api_key", "test-key")
-    monkeypatch.setattr(ai_tutor_service.settings, "gemini_models", "primary-model,fallback-model")
-    monkeypatch.setattr(ai_tutor_service.genai, "Client", FakeGemini)
+    monkeypatch.setattr(ai_tutor_service.settings, "openrouter_api_key", "router-test-key")
+    monkeypatch.setattr(
+        ai_tutor_service.settings,
+        "ai_tutor_models",
+        "openai/gpt-6-astra,anthropic/claude-opus-4.8",
+    )
+    monkeypatch.setattr(ai_tutor_service.httpx, "post", fake_post)
 
     with pytest.raises(ai_tutor_service.TutorUnavailableError):
-        ai_tutor_service.ask_tutor(
-            SimpleNamespace(title="Geology", code="GEO-101", description="", topics=[]),
-            [TutorMessage(role="user", content="What is a rock?")],
-        )
+        ai_tutor_service.ask_tutor(sample_course(), sample_messages())
 
-    assert attempted_models == ["primary-model"]
+    assert attempted == ["openai/gpt-6-astra"]
 
 
-def test_ask_tutor_requires_gemini_key(monkeypatch):
-    monkeypatch.setattr(ai_tutor_service.settings, "gemini_api_key", None)
+def test_ask_tutor_requires_openrouter_key(monkeypatch):
+    monkeypatch.setattr(ai_tutor_service.settings, "openrouter_api_key", None)
 
-    with pytest.raises(ai_tutor_service.TutorNotConfiguredError):
-        ai_tutor_service.ask_tutor(
-            SimpleNamespace(title="Geology", code="GEO-101", description="", topics=[]),
-            [TutorMessage(role="user", content="What is a rock?")],
-        )
+    with pytest.raises(ai_tutor_service.TutorNotConfiguredError, match="OpenRouter API key"):
+        ai_tutor_service.ask_tutor(sample_course(), sample_messages())
+
+
+def test_configured_models_rejects_ids_without_provider():
+    with pytest.MonkeyPatch.context() as monkeypatch:
+        monkeypatch.setattr(ai_tutor_service.settings, "ai_tutor_models", "gpt-6-astra")
+        with pytest.raises(ai_tutor_service.TutorNotConfiguredError, match="provider/model"):
+            ai_tutor_service.configured_models()
 
 
 def test_tutor_request_allows_longer_assistant_replies():

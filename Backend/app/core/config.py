@@ -21,8 +21,8 @@ class Settings(BaseSettings):
     smtp_password: str | None = None
     smtp_sender_email: str | None = None
     smtp_use_ssl: bool = False
-    gemini_api_key: str | None = None
-    gemini_models: str = "gemini-flash-lite-latest,gemini-3.1-flash-lite"
+    openrouter_api_key: str | None = None
+    ai_tutor_models: str = "openai/gpt-6-astra,anthropic/claude-opus-4.8"
 
     model_config = SettingsConfigDict(env_file=".env", case_sensitive=False, extra="ignore")
 
