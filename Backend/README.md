@@ -48,7 +48,7 @@ python -m uvicorn app.main:app --reload
 
 The API is available at `http://localhost:8000`; interactive docs are at `http://localhost:8000/docs`. When both seed passwords are configured, the seed creates the accounts using `SEED_ADMIN_EMAIL` and `SEED_STUDENT_EMAIL`. Existing legacy accounts ending in `@pageturners.local` are updated to those configured addresses when you rerun `python seed.py`; their existing passwords are unchanged. To enable content management in the frontend, sign in using `SEED_ADMIN_EMAIL` and `SEED_ADMIN_PASSWORD`. Without the passwords, the seed still installs reference and course data so students can register normally, but it does not create demo accounts.
 
-Password reset requires an SMTP provider. Configure its SMTP settings above, set `FRONTEND_URL` to the deployed site origin, and run `python -m alembic upgrade head` to create the reset-token table. Reset links expire after 30 minutes and can only be used once. Keep SMTP credentials in `.env` and never commit them.
+Password reset requires an SMTP provider. Configure its SMTP settings above, set `FRONTEND_URL` to the deployed site origin, and run `python -m alembic upgrade head` to create the reset-token table. Requests for unregistered or inactive accounts are rejected; reset links expire after 30 minutes and can only be used once. Keep SMTP credentials in `.env` and never commit them.
 
 Administrators can manage accounts from the admin page: deactivation blocks sign-in but preserves account data, reactivation restores access, and permanent deletion removes the account and its associated learning records. The API protects the current administrator and prevents removing the last active administrator.
 

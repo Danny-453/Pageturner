@@ -47,17 +47,20 @@ def request_password_reset(
     background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
 ):
+    user = db.scalar(select(User).where(User.email == str(payload.email).lower(), User.is_active.is_(True)))
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No active account is registered with this email address.",
+        )
+
     if not settings.smtp_host or not settings.smtp_sender_email:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Password reset email is not configured. Contact the administrator.",
         )
 
-    response = {"message": "If an account exists for that email, a password reset link will be sent."}
-    user = db.scalar(select(User).where(User.email == str(payload.email).lower(), User.is_active.is_(True)))
-    if not user:
-        return response
-
+    response = {"message": "A password reset link will be sent to your email address."}
     token = secrets.token_urlsafe(32)
     token_hash = hashlib.sha256(token.encode("utf-8")).hexdigest()
     db.execute(delete(PasswordResetToken).where(PasswordResetToken.user_id == user.id))

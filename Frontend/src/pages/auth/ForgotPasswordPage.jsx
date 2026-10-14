@@ -46,7 +46,7 @@ export default function ForgotPasswordPage() {
           {sent ? (
             <>
               <div className="notice" role="status">
-                If an account exists for that email, a reset link will be sent. Check your inbox and spam folder.
+                A reset link will be sent to your email address. Check your inbox and spam folder.
               </div>
               {error && <div className="notice" role="alert" style={{ color: 'var(--color-error)', marginTop: 16 }}>{error}</div>}
               <button
