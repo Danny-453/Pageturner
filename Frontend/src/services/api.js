@@ -1,3 +1,5 @@
+import { formatValidationError } from '../utils/apiErrors.js';
+
 export const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '');
 export const API_ENABLED = Boolean(API_BASE_URL);
 export const AUTH_TOKEN_KEY = 'pageturners-token';
@@ -24,7 +26,7 @@ export async function apiRequest(path, options = {}) {
       const body = await response.json();
       const detail = body.detail;
       message = Array.isArray(detail)
-        ? detail.map((item) => item.msg).join(' ')
+        ? detail.map(formatValidationError).join(' ')
         : typeof detail === 'string'
           ? detail
           : message;
