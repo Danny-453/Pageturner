@@ -12,7 +12,7 @@ def make_response(status_code, payload):
     return httpx.Response(
         status_code,
         json=payload,
-        request=httpx.Request("POST", ai_tutor_service.OPENROUTER_CHAT_COMPLETIONS_URL),
+        request=httpx.Request("POST", "https://agentrouter.org/v1/chat/completions"),
     )
 
 
@@ -44,7 +44,7 @@ def test_course_context_orders_topics_and_lessons():
     assert context.index("Lesson: Rock cycle") < context.index("Lesson: Igneous")
 
 
-def test_ask_tutor_uses_single_openrouter_key_and_returns_answer(monkeypatch):
+def test_ask_tutor_uses_agentrouter_key_endpoint_and_model(monkeypatch):
     calls = {}
 
     def fake_post(url, **kwargs):
@@ -54,53 +54,47 @@ def test_ask_tutor_uses_single_openrouter_key_and_returns_answer(monkeypatch):
             {"choices": [{"message": {"role": "assistant", "content": "A rock is naturally occurring."}}]},
         )
 
-    monkeypatch.setattr(ai_tutor_service.settings, "openrouter_api_key", "router-test-key")
-    monkeypatch.setattr(
-        ai_tutor_service.settings,
-        "ai_tutor_models",
-        "openai/gpt-6-astra",
-    )
+    monkeypatch.setattr(ai_tutor_service.settings, "agentrouter_api_key", "agentrouter-test-key")
+    monkeypatch.setattr(ai_tutor_service.settings, "ai_tutor_base_url", "https://agentrouter.org/v1")
+    monkeypatch.setattr(ai_tutor_service.settings, "ai_tutor_models", "gpt-6-astra")
     monkeypatch.setattr(ai_tutor_service.httpx, "post", fake_post)
 
     answer = ai_tutor_service.ask_tutor(sample_course(), sample_messages())
 
     assert answer == "A rock is naturally occurring."
-    assert calls["url"] == ai_tutor_service.OPENROUTER_CHAT_COMPLETIONS_URL
-    assert calls["headers"]["Authorization"] == "Bearer router-test-key"
-    assert calls["json"]["model"] == "openai/gpt-6-astra"
+    assert calls["url"] == "https://agentrouter.org/v1/chat/completions"
+    assert calls["headers"]["Authorization"] == "Bearer agentrouter-test-key"
+    assert calls["json"]["model"] == "gpt-6-astra"
     assert calls["json"]["messages"][1:] == [{"role": "user", "content": "What is a rock?"}]
     assert calls["json"]["messages"][0]["role"] == "system"
     assert "never invent or guess image URLs" in calls["json"]["messages"][0]["content"]
     assert calls["timeout"] == ai_tutor_service.AI_REQUEST_TIMEOUT_SECONDS
 
 
-def test_ask_tutor_falls_back_to_claude_through_openrouter(monkeypatch):
+def test_ask_tutor_falls_back_to_claude_through_agentrouter(monkeypatch):
     attempted = []
 
     def fake_post(url, **kwargs):
         model = kwargs["json"]["model"]
         attempted.append((url, kwargs["headers"]["Authorization"], model))
-        if model == "openai/gpt-6-astra":
+        if model == "gpt-6-astra":
             return make_response(503, {"error": {"message": "Temporarily unavailable"}})
         return make_response(
             200,
             {"choices": [{"message": {"role": "assistant", "content": "Claude answered."}}]},
         )
 
-    monkeypatch.setattr(ai_tutor_service.settings, "openrouter_api_key", "router-test-key")
-    monkeypatch.setattr(
-        ai_tutor_service.settings,
-        "ai_tutor_models",
-        "openai/gpt-6-astra,anthropic/claude-opus-4.8",
-    )
+    monkeypatch.setattr(ai_tutor_service.settings, "agentrouter_api_key", "agentrouter-test-key")
+    monkeypatch.setattr(ai_tutor_service.settings, "ai_tutor_base_url", "https://agentrouter.org/v1")
+    monkeypatch.setattr(ai_tutor_service.settings, "ai_tutor_models", "gpt-6-astra,claude-opus-4-8")
     monkeypatch.setattr(ai_tutor_service.httpx, "post", fake_post)
 
     answer = ai_tutor_service.ask_tutor(sample_course(), sample_messages())
 
     assert answer == "Claude answered."
     assert attempted == [
-        (ai_tutor_service.OPENROUTER_CHAT_COMPLETIONS_URL, "Bearer router-test-key", "openai/gpt-6-astra"),
-        (ai_tutor_service.OPENROUTER_CHAT_COMPLETIONS_URL, "Bearer router-test-key", "anthropic/claude-opus-4.8"),
+        ("https://agentrouter.org/v1/chat/completions", "Bearer agentrouter-test-key", "gpt-6-astra"),
+        ("https://agentrouter.org/v1/chat/completions", "Bearer agentrouter-test-key", "claude-opus-4-8"),
     ]
 
 
@@ -111,32 +105,42 @@ def test_ask_tutor_does_not_fallback_on_authentication_failure(monkeypatch):
         attempted.append(kwargs["json"]["model"])
         return make_response(401, {"error": {"message": "Invalid API key"}})
 
-    monkeypatch.setattr(ai_tutor_service.settings, "openrouter_api_key", "router-test-key")
-    monkeypatch.setattr(
-        ai_tutor_service.settings,
-        "ai_tutor_models",
-        "openai/gpt-6-astra,anthropic/claude-opus-4.8",
-    )
+    monkeypatch.setattr(ai_tutor_service.settings, "agentrouter_api_key", "agentrouter-test-key")
+    monkeypatch.setattr(ai_tutor_service.settings, "ai_tutor_base_url", "https://agentrouter.org/v1")
+    monkeypatch.setattr(ai_tutor_service.settings, "ai_tutor_models", "gpt-6-astra,claude-opus-4-8")
     monkeypatch.setattr(ai_tutor_service.httpx, "post", fake_post)
 
     with pytest.raises(ai_tutor_service.TutorUnavailableError):
         ai_tutor_service.ask_tutor(sample_course(), sample_messages())
 
-    assert attempted == ["openai/gpt-6-astra"]
+    assert attempted == ["gpt-6-astra"]
 
 
-def test_ask_tutor_requires_openrouter_key(monkeypatch):
-    monkeypatch.setattr(ai_tutor_service.settings, "openrouter_api_key", None)
+def test_ask_tutor_requires_agentrouter_key(monkeypatch):
+    monkeypatch.setattr(ai_tutor_service.settings, "agentrouter_api_key", None)
 
-    with pytest.raises(ai_tutor_service.TutorNotConfiguredError, match="OpenRouter API key"):
+    with pytest.raises(ai_tutor_service.TutorNotConfiguredError, match="AgentRouter API key"):
         ai_tutor_service.ask_tutor(sample_course(), sample_messages())
 
 
-def test_configured_models_rejects_ids_without_provider():
-    with pytest.MonkeyPatch.context() as monkeypatch:
-        monkeypatch.setattr(ai_tutor_service.settings, "ai_tutor_models", "gpt-6-astra")
-        with pytest.raises(ai_tutor_service.TutorNotConfiguredError, match="provider/model"):
-            ai_tutor_service.configured_models()
+def test_configured_models_keeps_order_and_deduplicates(monkeypatch):
+    monkeypatch.setattr(
+        ai_tutor_service.settings,
+        "ai_tutor_models",
+        " gpt-6-astra, claude-opus-4-8, gpt-6-astra ",
+    )
+
+    assert ai_tutor_service.configured_models() == ["gpt-6-astra", "claude-opus-4-8"]
+
+
+def test_configured_models_normalizes_previous_openrouter_ids(monkeypatch):
+    monkeypatch.setattr(
+        ai_tutor_service.settings,
+        "ai_tutor_models",
+        "openai/gpt-6-astra,anthropic/claude-opus-4.8",
+    )
+
+    assert ai_tutor_service.configured_models() == ["gpt-6-astra", "claude-opus-4-8"]
 
 
 def test_tutor_request_allows_longer_assistant_replies():

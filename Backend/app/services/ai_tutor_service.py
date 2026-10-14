@@ -11,7 +11,10 @@ MAX_COURSE_CONTEXT_CHARS = 18000
 MAX_REPLY_TOKENS = 600
 AI_REQUEST_TIMEOUT_SECONDS = 120
 RETRYABLE_STATUS_CODES = {404, 408, 409, 429, 500, 502, 503, 504}
-OPENROUTER_CHAT_COMPLETIONS_URL = "https://openrouter.ai/api/v1/chat/completions"
+LEGACY_MODEL_IDS = {
+    "openai/gpt-6-astra": "gpt-6-astra",
+    "anthropic/claude-opus-4.8": "claude-opus-4-8",
+}
 
 
 class TutorNotConfiguredError(RuntimeError):
@@ -40,12 +43,9 @@ def configured_models() -> list[str]:
         entry = entry.strip()
         if not entry:
             continue
-        if "/" not in entry:
-            raise TutorNotConfiguredError(
-                "OpenRouter models must use their provider/model IDs."
-            )
-        if entry not in models:
-            models.append(entry)
+        model = LEGACY_MODEL_IDS.get(entry, entry)
+        if model not in models:
+            models.append(model)
     if not models:
         raise TutorNotConfiguredError("No AI tutor models are configured.")
     return models
@@ -74,7 +74,7 @@ def _response_text(response: httpx.Response) -> str:
     try:
         content = payload["choices"][0]["message"]["content"]
     except (KeyError, IndexError, TypeError) as exc:
-        raise ValueError("OpenRouter returned a response without assistant text.") from exc
+        raise ValueError("AgentRouter returned a response without assistant text.") from exc
     if isinstance(content, str):
         return content
     if isinstance(content, list):
@@ -92,9 +92,9 @@ def _generate_answer(
     messages: list[TutorMessage],
 ) -> str:
     response = httpx.post(
-        OPENROUTER_CHAT_COMPLETIONS_URL,
+        f"{settings.ai_tutor_base_url.rstrip('/')}/chat/completions",
         headers={
-            "Authorization": f"Bearer {settings.openrouter_api_key}",
+            "Authorization": f"Bearer {settings.agentrouter_api_key}",
             "Content-Type": "application/json",
         },
         json=_request_payload(model, instruction, messages),
@@ -120,9 +120,9 @@ def ask_tutor(course: Course, messages: list[TutorMessage]) -> str:
         f"<course_material>\n{course_context(course)}\n</course_material>"
     )
 
-    if not settings.openrouter_api_key:
+    if not settings.agentrouter_api_key:
         raise TutorNotConfiguredError(
-            "The AI tutor is not configured. Add an OpenRouter API key."
+            "The AI tutor is not configured. Add an AgentRouter API key."
         )
 
     models = configured_models()
@@ -132,33 +132,33 @@ def ask_tutor(course: Course, messages: list[TutorMessage]) -> str:
         except httpx.HTTPStatusError as exc:
             status_code = exc.response.status_code
             if status_code not in RETRYABLE_STATUS_CODES or index == len(models) - 1:
-                logger.exception("OpenRouter tutor request failed for model %s.", model)
+                logger.exception("AgentRouter tutor request failed for model %s.", model)
                 raise TutorUnavailableError(
                     "The AI tutor is temporarily unavailable. Please try again."
                 ) from exc
             logger.warning(
-                "OpenRouter tutor model %s returned status %s; trying the next configured model.",
+                "AgentRouter tutor model %s returned status %s; trying the next configured model.",
                 model,
                 status_code,
             )
             continue
         except (httpx.TimeoutException, httpx.RequestError, ValueError) as exc:
             if index == len(models) - 1:
-                logger.exception("OpenRouter tutor request failed for model %s.", model)
+                logger.exception("AgentRouter tutor request failed for model %s.", model)
                 raise TutorUnavailableError(
                     "The AI tutor is temporarily unavailable. Please try again."
                 ) from exc
             logger.warning(
-                "OpenRouter tutor request failed for model %s; trying the next configured model.",
+                "AgentRouter tutor request failed for model %s; trying the next configured model.",
                 model,
             )
             continue
 
         if answer:
             if index:
-                logger.info("OpenRouter tutor answered using fallback model %s.", model)
+                logger.info("AgentRouter tutor answered using fallback model %s.", model)
             return answer
-        logger.warning("OpenRouter tutor model %s returned an empty response.", model)
+        logger.warning("AgentRouter tutor model %s returned an empty response.", model)
 
     logger.error("All configured AI tutor models returned empty responses.")
     raise TutorUnavailableError("The AI tutor could not produce an answer. Please try again.")

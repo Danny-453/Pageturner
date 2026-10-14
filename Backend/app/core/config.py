@@ -1,4 +1,5 @@
 from functools import lru_cache
+from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -21,8 +22,12 @@ class Settings(BaseSettings):
     smtp_password: str | None = None
     smtp_sender_email: str | None = None
     smtp_use_ssl: bool = False
-    openrouter_api_key: str | None = None
-    ai_tutor_models: str = "openai/gpt-6-astra,anthropic/claude-opus-4.8"
+    agentrouter_api_key: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("AGENTROUTER_API_KEY", "OPENROUTER_API_KEY"),
+    )
+    ai_tutor_base_url: str = "https://agentrouter.org/v1"
+    ai_tutor_models: str = "gpt-6-astra,claude-opus-4-8"
 
     model_config = SettingsConfigDict(env_file=".env", case_sensitive=False, extra="ignore")
 
