@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import PageHeader from '../../components/common/PageHeader';
 import { useAuth } from '../../context/AuthContext';
 import { students } from '../../data/students';
+import { generateLessonQuestions, saveLessonQuestions } from '../../services/adminService';
 import { API_ENABLED, apiGet, apiPost, apiRequest } from '../../services/api';
 import { getCourses } from '../../services/courseService';
 import { getLessons } from '../../services/lessonService';
@@ -35,26 +36,17 @@ export default function AdminPage() {
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
   const [userActionId, setUserActionId] = useState('');
+  const [quizLessonId, setQuizLessonId] = useState('');
+  const [generatedQuiz, setGeneratedQuiz] = useState(null);
+  const [quizBusy, setQuizBusy] = useState(false);
   const [editing, setEditing] = useState(null);
   const [courseForm, setCourseForm] = useState({ code: '', title: '', description: '', academic_level_id: '' });
   const [topicForm, setTopicForm] = useState({ title: '', description: '', order: 1 });
   const [lessonForm, setLessonForm] = useState({ title: '', content: '', video_url: '', order: 1, estimated_minutes: 15 });
-  const [questionForm, setQuestionForm] = useState({
-    question_text: '',
-    difficulty: 'medium',
-    explanation: '',
-    points: 10,
-    correct_answer: 'a',
-    options: [
-      { option_key: 'a', text: '', order: 1 },
-      { option_key: 'b', text: '', order: 2 },
-      { option_key: 'c', text: '', order: 3 },
-      { option_key: 'd', text: '', order: 4 },
-    ],
-  });
   const selectedUser = users.find((account) => account.id === selectedUserId);
   const selectedUserIsCurrent = selectedUser?.id === user?.id;
   const selectedUserIsBusy = userActionId === selectedUser?.id;
+  const selectedQuizLesson = contentLessons.find((lesson) => lesson.id === quizLessonId);
 
   async function refreshContent() {
     const [courseItems, lessonItems, questionItems, users] = await Promise.all([
@@ -72,6 +64,42 @@ export default function AdminPage() {
       questions: questionItems.length,
     });
     return courseItems;
+  }
+
+  async function generateQuiz() {
+    if (!quizLessonId) return;
+    setError('');
+    setNotice('');
+    setQuizBusy(true);
+    try {
+      const quiz = await generateLessonQuestions(quizLessonId);
+      setGeneratedQuiz(quiz);
+      setNotice('20 questions generated. Review them below before publishing to students.');
+    } catch (generationError) {
+      setError(generationError.message);
+    } finally {
+      setQuizBusy(false);
+    }
+  }
+
+  async function saveQuiz() {
+    if (!quizLessonId || !generatedQuiz) return;
+    if (!window.confirm('Save and publish all 20 reviewed questions for this lesson? Students will be able to use them immediately.')) return;
+
+    setError('');
+    setNotice('');
+    setQuizBusy(true);
+    try {
+      const result = await saveLessonQuestions(quizLessonId, generatedQuiz.questions);
+      await refreshContent();
+      setContentQuestions(await getQuestions(courseId));
+      setGeneratedQuiz(null);
+      setNotice(`${result.saved_count} questions saved and published for "${selectedQuizLesson?.title}".`);
+    } catch (saveError) {
+      setError(saveError.message);
+    } finally {
+      setQuizBusy(false);
+    }
   }
 
   useEffect(() => {
@@ -142,6 +170,8 @@ export default function AdminPage() {
         setContentLessons(lessonItems);
         setContentQuestions(questionItems);
         setTopicId((current) => items.some((item) => item.id === current) ? current : items[0]?.id || '');
+        setQuizLessonId((current) => lessonItems.some((item) => item.id === current) ? current : lessonItems[0]?.id || '');
+        setGeneratedQuiz(null);
       })
       .catch((loadError) => {
         if (active) setError(loadError.message);
@@ -707,56 +737,64 @@ export default function AdminPage() {
 
           <section className="card card-pad" style={{ marginTop: 20 }}>
             <div className="eyebrow">Step 4</div>
-            <h2 style={{ marginTop: 6 }}>Add a multiple-choice quiz question</h2>
-            <FormField label="Choose topic">
-              <select className="select" style={inputStyle} value={topicId} onChange={(event) => setTopicId(event.target.value)} required>
-                <option value="" disabled>Select a topic</option>
-                {topics.map((topic) => <option key={topic.id} value={topic.id}>{topic.title}</option>)}
+            <h2 style={{ marginTop: 6 }}>Generate lesson quiz questions</h2>
+            <p className="muted">Generate 20 multiple-choice questions from a lesson’s uploaded notes. Review the questions before adding them to the student question bank.</p>
+            <FormField label="Choose lesson">
+              <select
+                className="select"
+                style={inputStyle}
+                value={quizLessonId}
+                disabled={quizBusy}
+                onChange={(event) => {
+                  setQuizLessonId(event.target.value);
+                  setGeneratedQuiz(null);
+                }}
+                required
+              >
+                <option value="" disabled>Select a lesson</option>
+                {contentLessons.map((lesson) => <option key={lesson.id} value={lesson.id}>{lesson.title}</option>)}
               </select>
             </FormField>
-            <form onSubmit={(event) => submitContent(event, '/questions', {
-              topic_id: topicId,
-              question_text: questionForm.question_text,
-              question_type: 'multiple_choice',
-              difficulty: questionForm.difficulty,
-              explanation: questionForm.explanation,
-              points: Number(questionForm.points),
-              correct_answer: questionForm.correct_answer,
-              options: questionForm.options.map((option) => ({ ...option, order: Number(option.order) })),
-            }, () => {
-              setQuestionForm((current) => ({ ...current, question_text: '', explanation: '', options: current.options.map((option) => ({ ...option, text: '' })) }));
-            })}>
-              <FormField label="Question">
-                <textarea className="input" style={{ ...inputStyle, minHeight: 80 }} value={questionForm.question_text} onChange={(event) => setQuestionForm({ ...questionForm, question_text: event.target.value })} required />
-              </FormField>
-              <div className="grid-2">
-                <FormField label="Difficulty">
-                  <select className="select" style={inputStyle} value={questionForm.difficulty} onChange={(event) => setQuestionForm({ ...questionForm, difficulty: event.target.value })}>
-                    <option value="easy">Easy</option><option value="medium">Medium</option><option value="hard">Hard</option>
-                  </select>
-                </FormField>
-                <FormField label="Points">
-                  <input className="input" style={inputStyle} type="number" min="0" value={questionForm.points} onChange={(event) => setQuestionForm({ ...questionForm, points: Number(event.target.value) })} required />
-                </FormField>
-              </div>
-              <div className="stack" style={{ gap: 10, marginTop: 16 }}>
-                {questionForm.options.map((option, index) => (
-                  <FormField key={option.option_key} label={`Option ${option.option_key.toUpperCase()}${questionForm.correct_answer === option.option_key ? ' (correct answer)' : ''}`}>
-                    <div className="row">
-                      <input type="radio" name="correct-answer" aria-label={`Mark option ${option.option_key} as correct`} checked={questionForm.correct_answer === option.option_key} onChange={() => setQuestionForm({ ...questionForm, correct_answer: option.option_key })} />
-                      <input className="input" style={inputStyle} value={option.text} onChange={(event) => setQuestionForm({
-                        ...questionForm,
-                        options: questionForm.options.map((item, itemIndex) => itemIndex === index ? { ...item, text: event.target.value } : item),
-                      })} required placeholder={`Answer option ${option.option_key.toUpperCase()}`} />
+            <div className="row" style={{ marginTop: 16, flexWrap: 'wrap' }}>
+              <button className="btn btn-primary" type="button" onClick={generateQuiz} disabled={quizBusy || !quizLessonId} aria-busy={quizBusy}>
+                {quizBusy ? 'Generating…' : 'Generate 20 questions'}
+              </button>
+              {generatedQuiz && (
+                <>
+                  <button className="btn btn-secondary" type="button" onClick={saveQuiz} disabled={quizBusy} aria-busy={quizBusy}>
+                    {quizBusy ? 'Saving…' : 'Approve and publish all 20'}
+                  </button>
+                  <button className="btn btn-ghost" type="button" onClick={() => setGeneratedQuiz(null)} disabled={quizBusy}>
+                    Discard review
+                  </button>
+                </>
+              )}
+            </div>
+            {!contentLessons.length && <p className="muted" style={{ marginTop: 14 }}>Add a lesson with notes before generating questions.</p>}
+            {generatedQuiz && (
+              <div className="stack" style={{ marginTop: 20 }}>
+                <div className="notice notice-info" role="status">
+                  Review all 20 questions, correct answers, and explanations. They will be published to students only after approval.
+                </div>
+                {generatedQuiz.questions.map((question, index) => (
+                  <article className="notice" key={`${index}-${question.question_text}`}>
+                    <div className="row space-between" style={{ alignItems: 'flex-start', gap: 12 }}>
+                      <strong>{index + 1}. {question.question_text}</strong>
+                      <span className="badge">{question.difficulty}</span>
                     </div>
-                  </FormField>
+                    <div className="stack" style={{ gap: 6, marginTop: 12 }}>
+                      {question.options.map((option) => (
+                        <div key={option.option_key}>
+                          <span className="muted">{option.option_key.toUpperCase()}.</span> {option.text}
+                          {option.option_key === question.correct_answer && <strong> — Correct answer</strong>}
+                        </div>
+                      ))}
+                    </div>
+                    <p className="muted" style={{ margin: '12px 0 0' }}><strong>Explanation:</strong> {question.explanation}</p>
+                  </article>
                 ))}
               </div>
-              <FormField label="Explanation shown after answering">
-                <textarea className="input" style={{ ...inputStyle, minHeight: 80 }} value={questionForm.explanation} onChange={(event) => setQuestionForm({ ...questionForm, explanation: event.target.value })} required />
-              </FormField>
-              <button className="btn btn-primary" style={{ marginTop: 16 }} disabled={saving || !topicId} aria-busy={saving}>{saving ? 'Saving…' : 'Add quiz question'}</button>
-            </form>
+            )}
           </section>
         </>
       )}

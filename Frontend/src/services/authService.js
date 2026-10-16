@@ -5,6 +5,7 @@ function normalizeUser(user) {
   return {
     ...user,
     name: user.full_name ?? user.name,
+    nickname: user.nickname ?? 'Student',
     studentId: user.student_id ?? user.studentId,
     academicLevelId: user.academic_level_id ?? user.academicLevelId,
     points: user.total_points ?? user.points ?? 0,
@@ -40,6 +41,7 @@ export async function register(payload) {
       user: normalizeUser({
         ...currentStudent,
         name: payload.fullName,
+        nickname: payload.nickname,
         email: payload.email,
         academicLevel: payload.academicLevel,
         studentId: payload.studentId,
@@ -56,6 +58,7 @@ export async function register(payload) {
 
   const result = await apiPost('/auth/register', {
     full_name: payload.fullName,
+    nickname: payload.nickname,
     email: payload.email,
     password: payload.password,
     student_id: payload.studentId || null,

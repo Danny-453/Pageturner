@@ -12,6 +12,7 @@ def make_user(user_id, role=UserRole.student, is_active=True):
     return SimpleNamespace(
         id=user_id,
         full_name=f"User {user_id}",
+        nickname=None,
         email=f"{user_id}@example.org",
         student_id=None,
         role=role,

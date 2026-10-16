@@ -14,7 +14,7 @@ router = APIRouter(prefix="/users", tags=["Users"])
 def user_out(db: Session, user: User) -> UserOut:
     accuracy = (user.correct_answers / user.questions_answered * 100) if user.questions_answered else 0
     return UserOut(
-        id=user.id, full_name=user.full_name, email=user.email, student_id=user.student_id,
+        id=user.id, full_name=user.full_name, nickname=user.nickname, email=user.email, student_id=user.student_id,
         role=user.role, academic_level_id=user.academic_level_id, total_points=user.total_points,
         current_streak=user.current_streak, questions_answered=user.questions_answered,
         correct_answers=user.correct_answers, accuracy=round(accuracy, 2), is_active=user.is_active,

@@ -41,6 +41,7 @@ class User(TimestampMixin, Base):
     __tablename__ = "users"
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
     full_name: Mapped[str] = mapped_column(String(160), nullable=False)
+    nickname: Mapped[str | None] = mapped_column(String(40), nullable=True)
     email: Mapped[str] = mapped_column(String(255), unique=True, index=True, nullable=False)
     password_hash: Mapped[str] = mapped_column(String(512), nullable=False)
     student_id: Mapped[str | None] = mapped_column(String(80), unique=True, index=True)
@@ -126,6 +127,7 @@ class Question(TimestampMixin, Base):
     __tablename__ = "questions"
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
     topic_id: Mapped[str] = mapped_column(ForeignKey("topics.id", ondelete="CASCADE"), nullable=False)
+    source_lesson_id: Mapped[str | None] = mapped_column(ForeignKey("lessons.id", ondelete="SET NULL"))
     question_text: Mapped[str] = mapped_column(Text, nullable=False)
     question_type: Mapped[QuestionType] = mapped_column(SAEnum(QuestionType, name="question_type"), default=QuestionType.multiple_choice, nullable=False)
     difficulty: Mapped[Difficulty] = mapped_column(SAEnum(Difficulty, name="question_difficulty"), default=Difficulty.medium, nullable=False)

@@ -1,10 +1,11 @@
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field
 from app.models.enums import UserRole
 
 
 class UserOut(BaseModel):
     id: str
     full_name: str
+    nickname: str | None = None
     email: EmailStr
     student_id: str | None
     role: UserRole
@@ -19,6 +20,7 @@ class UserOut(BaseModel):
 
 class UserUpdate(BaseModel):
     full_name: str | None = None
+    nickname: str | None = Field(default=None, min_length=2, max_length=40)
     student_id: str | None = None
     academic_level_id: str | None = None
 

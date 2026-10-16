@@ -10,14 +10,23 @@ class AuthService:
         self.users = UserRepository(db)
         self.db = db
 
-    def register(self, *, full_name: str, email: str, password: str, student_id: str | None, academic_level_id: str) -> User:
+    def register(
+        self,
+        *,
+        full_name: str,
+        nickname: str,
+        email: str,
+        password: str,
+        student_id: str | None,
+        academic_level_id: str,
+    ) -> User:
         email = email.lower()
         if self.users.by_email(email):
             raise ValueError("An account with this email already exists.")
         if student_id and self.users.by_student_id(student_id):
             raise ValueError("An account with this student ID already exists.")
         user = User(
-            full_name=full_name.strip(), email=email, password_hash=hash_password(password),
+            full_name=full_name.strip(), nickname=nickname.strip(), email=email, password_hash=hash_password(password),
             student_id=student_id, academic_level_id=academic_level_id,
         )
         self.users.add(user)
