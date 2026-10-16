@@ -14,6 +14,42 @@ MAX_LESSON_CONTENT_CHARS = 24000
 GENERATION_TIMEOUT_MS = 120_000
 MAX_OUTPUT_TOKENS = 10000
 RETRYABLE_GEMINI_STATUS_CODES = {404, 429, 500, 502, 503, 504}
+QUIZ_RESPONSE_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "questions": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "question_text": {"type": "string"},
+                    "difficulty": {"type": "string", "enum": ["easy", "medium", "hard"]},
+                    "explanation": {"type": "string"},
+                    "correct_answer": {"type": "string", "enum": ["a", "b", "c", "d"]},
+                    "options": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "option_key": {"type": "string", "enum": ["a", "b", "c", "d"]},
+                                "text": {"type": "string"},
+                            },
+                            "required": ["option_key", "text"],
+                        },
+                    },
+                },
+                "required": [
+                    "question_text",
+                    "difficulty",
+                    "explanation",
+                    "correct_answer",
+                    "options",
+                ],
+            },
+        },
+    },
+    "required": ["questions"],
+}
 
 
 class QuizGenerationNotConfiguredError(RuntimeError):
@@ -61,7 +97,7 @@ def generate_lesson_quiz(lesson_title: str, lesson_content: str) -> GeneratedQui
                 config=types.GenerateContentConfig(
                     system_instruction=system_instruction,
                     response_mime_type="application/json",
-                    response_schema=GeneratedQuiz,
+                    response_schema=QUIZ_RESPONSE_SCHEMA,
                     max_output_tokens=MAX_OUTPUT_TOKENS,
                     temperature=0.4,
                 ),
