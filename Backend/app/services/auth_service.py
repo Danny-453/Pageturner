@@ -14,7 +14,6 @@ class AuthService:
         self,
         *,
         full_name: str,
-        nickname: str,
         email: str,
         password: str,
         student_id: str | None,
@@ -26,7 +25,7 @@ class AuthService:
         if student_id and self.users.by_student_id(student_id):
             raise ValueError("An account with this student ID already exists.")
         user = User(
-            full_name=full_name.strip(), nickname=nickname.strip(), email=email, password_hash=hash_password(password),
+            full_name=full_name.strip(), email=email, password_hash=hash_password(password),
             student_id=student_id, academic_level_id=academic_level_id,
         )
         self.users.add(user)

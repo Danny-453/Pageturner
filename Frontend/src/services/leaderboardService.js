@@ -15,7 +15,7 @@ export async function getLeaderboard({ scope = 'department', courseId } = {}) {
     entries: response.entries.map((entry) => ({
       ...entry,
       id: entry.user_id,
-      name: entry.nickname ?? 'Student',
+      name: entry.name,
       academicLevel: entry.academic_level,
       answered: entry.questions_answered,
     })),

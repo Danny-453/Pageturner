@@ -12,7 +12,6 @@ export default function RegisterPage() {
 
     const [form, setForm] = useState({
         fullName: '',
-        nickname: '',
         email: '',
         password: '',
         confirmPassword: '',
@@ -142,26 +141,6 @@ export default function RegisterPage() {
                                 }
                                 required
                             />
-                        </div>
-
-                        <div className="form-field">
-                            <label htmlFor="nickname">
-                                Nickname
-                            </label>
-
-                            <input
-                                className="input"
-                                id="nickname"
-                                value={form.nickname}
-                                onChange={(e) =>
-                                    set('nickname', e.target.value)
-                                }
-                                minLength={2}
-                                maxLength={40}
-                                required
-                            />
-
-                            <span className="muted">This is the name shown on the leaderboard.</span>
                         </div>
 
                         <div className="form-field">

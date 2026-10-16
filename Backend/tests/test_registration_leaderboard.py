@@ -1,30 +1,18 @@
 from types import SimpleNamespace
 
-import pytest
-from pydantic import ValidationError
-
 from app.api.routes.leaderboard import leaderboard
 from app.schemas.auth import RegisterRequest
 
 
-def test_registration_requires_and_trims_nickname():
+def test_registration_does_not_require_nickname():
     registration = RegisterRequest(
         full_name="Student Name",
-        nickname="  RockStar  ",
         email="student@example.org",
-        password="password123",
+        password="valid-test-password",
         academic_level_id="level-1",
     )
 
-    assert registration.nickname == "RockStar"
-
-    with pytest.raises(ValidationError):
-        RegisterRequest(
-            full_name="Student Name",
-            email="student@example.org",
-            password="password123",
-            academic_level_id="level-1",
-        )
+    assert registration.full_name == "Student Name"
 
 
 class FakeRows:
@@ -43,11 +31,10 @@ class FakeDatabase:
         return FakeRows(self.rows)
 
 
-def test_leaderboard_does_not_expose_full_name_when_nickname_is_missing():
+def test_leaderboard_displays_student_full_name():
     student = SimpleNamespace(
         id="student-1",
-        full_name="Private Full Name",
-        nickname=None,
+        full_name="Student Full Name",
         total_points=10,
         correct_answers=1,
         questions_answered=2,
@@ -60,5 +47,4 @@ def test_leaderboard_does_not_expose_full_name_when_nickname_is_missing():
         user=current_user,
     )
 
-    assert result.entries[0].nickname == "Student"
-    assert not hasattr(result.entries[0], "name")
+    assert result.entries[0].name == "Student Full Name"
