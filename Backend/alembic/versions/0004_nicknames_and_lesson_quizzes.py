@@ -1,12 +1,12 @@
 """add student nicknames and generated quiz source lessons
 
-Revision ID: 0004_nicknames_and_lesson_quizzes
+Revision ID: 0004_lesson_quizzes
 Revises: 0003_lesson_video_url
 """
 from alembic import op
 import sqlalchemy as sa
 
-revision = "0004_nicknames_and_lesson_quizzes"
+revision = "0004_lesson_quizzes"
 down_revision = "0003_lesson_video_url"
 branch_labels = None
 depends_on = None

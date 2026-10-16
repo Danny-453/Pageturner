@@ -1,13 +1,13 @@
 """remove student nicknames
 
-Revision ID: 0005_remove_user_nickname
-Revises: 0004_nicknames_and_lesson_quizzes
+Revision ID: 0005_remove_nickname
+Revises: 0004_lesson_quizzes
 """
 from alembic import op
 import sqlalchemy as sa
 
-revision = "0005_remove_user_nickname"
-down_revision = "0004_nicknames_and_lesson_quizzes"
+revision = "0005_remove_nickname"
+down_revision = "0004_lesson_quizzes"
 branch_labels = None
 depends_on = None
 
